@@ -1,0 +1,12 @@
+{
+  "name": "neuroglyphs",
+  "version": "0.1.0",
+  "description": "NEUROGLYPHS - indie 3D game where the world is made of glyphs (tokens) inside a living neural network",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "node -e \"console.log('No build step: static demo served by server.js')\"",
+    "preview": "node server.js"
+  }
+}

@@ -4,12 +4,14 @@
 
 ## Current Task
 
-**T00 — Project scaffold: Vite + Three.js boot loop** (in-progress)
+**T01 — Glyph texture atlas** (next up) — T00 scaffold is DONE.
 
 ## Last Session Summary
 
 - 2026-08-19: Project initialized. Planning structure created (BACKLOG, task files, knowledge graph).
-- Scaffold code for T00 is being written in this session.
+- 2026-08-20: T00 scaffold completed — playable glyph-field demo (`index.html` + `src/main.js` on
+  Three.js r160 via import map, zero-build). `server.js` static server added (`npm run dev`).
+  GitHub repo created: https://github.com/Ilyaworks/neuroglyphs
 
 ## How to Pick Up Work
 
@@ -24,6 +26,7 @@
 | Date       | Task | Summary                                                        |
 |------------|------|----------------------------------------------------------------|
 | 2026-08-19 | —    | Repo scaffolded: planning docs, knowledge graph, backlog T00–T12 |
+| 2026-08-20 | T00  | Scaffold done: glyph-field demo (index.html + src/main.js, Three.js r160 import map), server.js static server (npm run dev), GitHub repo Ilyaworks/neuroglyphs |
 
 ## Known Risks
 
