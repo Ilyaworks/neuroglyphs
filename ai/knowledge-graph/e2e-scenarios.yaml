@@ -1,0 +1,65 @@
+# E2E scenarios for NEUROGLYPHS.
+# Each scenario describes a user-visible flow and how to verify it manually (no test runner yet).
+# Update this file whenever behavior/flows change.
+
+scenarios:
+  - id: boot
+    name: Game boots and renders glyph field
+    steps:
+      - Run `npm run dev`
+      - Open printed URL in browser
+    expected:
+      - Page loads without console errors
+      - 3D glyph field visible (thousands of character sprites)
+      - Camera responds to mouse look (pointer lock) and WASD movement
+      - HUD visible with empty context window and FPS counter
+
+  - id: token-collection
+    name: Player collects tokens into context window
+    steps:
+      - Fly toward a highlighted token glyph
+      - Press E within collection radius
+      - Repeat for several tokens
+    expected:
+      - Collected token appears in HUD context window
+      - Token glyph despawns from world (or dims)
+      - Collect blip sound plays
+      - Context window fills up to its max size; oldest token evicted on overflow
+
+  - id: inference-event
+    name: Token sequence triggers inference and mutates world
+    steps:
+      - Collect the target sequence defined in level data (e.g. "CTX" glyphs in order)
+    expected:
+      - Inference event fires: visible world mutation (region recolor / new field chunk / gate opens)
+      - Stinger sound plays
+      - HUD shows event message
+      - Signal pulse propagates along synapses from trigger point
+
+  - id: signal-propagation
+    name: Synapse pulses animate after inference
+    steps:
+      - Trigger an inference event
+      - Watch synapse lines near the trigger node
+    expected:
+      - Pulse travels along synapses with visible speed and decay
+      - Glyphs near active synapses brighten or shift hue
+      - Pulse expires after N hops; no lingering glow
+
+  - id: determinism
+    name: World layout is deterministic per seed
+    steps:
+      - Load level with seed A, note glyph positions
+      - Reload level with same seed A
+    expected:
+      - Glyph field layout is identical
+      - Changing seed produces a different layout
+
+  - id: performance
+    name: Field stays at 60fps
+    steps:
+      - Load default level (5000 glyphs)
+      - Move camera around for 30 seconds
+    expected:
+      - FPS counter stays >= 55 on integrated GPU
+      - No visible stutter or memory growth (check DevTools memory tab)

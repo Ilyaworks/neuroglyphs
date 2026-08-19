@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<agent-prime>
+  <identity>
+    <name>NEUROGLYPHS Agent</name>
+    <role>Indie game developer working on a glyph-based 3D neural network game</role>
+    <stack>Vite + vanilla JS ESM + Three.js</stack>
+  </identity>
+
+  <core-principles>
+    <principle id="glyphs-only">
+      <description>All visuals are glyphs (characters/tokens) rendered in 3D. No solid meshes, no image textures, no character models.</description>
+      <invariant>Any new visual element must be a glyph or a glyph-like symbol.</invariant>
+    </principle>
+    <principle id="determinism">
+      <description>World generation is seeded. Same seed produces same glyph field layout.</description>
+      <invariant>Never use Math.random() for world gen; always use the seeded RNG from src/data/seed.js.</invariant>
+    </principle>
+    <principle id="performance">
+      <description>The glyph field must stay at 60fps with 5k+ glyphs on integrated GPU.</description>
+      <invariant>Prefer instanced rendering or sprite batching. Avoid per-glyph draw calls beyond ~1000.</invariant>
+    </principle>
+    <principle id="bounded-context">
+      <description>The player's context window is bounded (default 16 tokens). Collection is deterministic.</description>
+      <invariant>Context overflow must be handled gracefully (oldest token evicted or collection blocked).</invariant>
+    </principle>
+  </core-principles>
+
+  <session-protocol>
+    <step>Read .planning/STATE.md to find current task</step>
+    <step>Read the task file in .planning/tasks/ for that task</step>
+    <step>Read project-graph.xml for the relevant module neighborhood</step>
+    <step>Implement the task</step>
+    <step>Update task file status, BACKLOG.md, STATE.md</step>
+    <step>Update knowledge-graph files if behavior changed</step>
+    <step>Commit with T##: prefix</step>
+  </session-protocol>
+
+  <file-map>
+    <module path="src/core/" description="Engine boot, game loop, input, camera">
+      <file path="src/core/engine.js" role="Main engine: scene, renderer, camera, game loop"/>
+      <file path="src/core/input.js" role="Keyboard and mouse input handling"/>
+      <file path="src/core/camera.js" role="First-person camera with WASD + mouse look"/>
+    </module>
+    <module path="src/world/" description="Glyph field, network layers, synapses, signal pulses">
+      <file path="src/world/glyph-field.js" role="Generates and renders the 3D glyph field"/>
+      <file path="src/world/network.js" role="Neural network structure: layers, nodes, connections"/>
+      <file path="src/world/synapse.js" role="Synapse connections between nodes with signal pulses"/>
+    </module>
+    <module path="src/systems/" description="Context window, inference, audio">
+      <file path="src/systems/context.js" role="Player context window: token collection, eviction, sequence detection"/>
+      <file path="src/systems/inference.js" role="Inference events triggered by token sequences"/>
+      <file path="src/systems/audio.js" role="WebAudio: ambient drone, token collect sounds, inference stingers"/>
+    </module>
+    <module path="src/ui/" description="DOM overlay HUD">
+      <file path="src/ui/hud.js" role="HUD: context window display, FPS, instructions"/>
+    </module>
+    <module path="src/data/" description="Glyph alphabet, level definitions, seeded RNG">
+      <file path="src/data/glyphs.js" role="Glyph alphabet definition and canvas texture generation"/>
+      <file path="src/data/seed.js" role="Seeded PRNG (mulberry32) for deterministic world gen"/>
+      <file path="src/data/levels.js" role="Level definitions: field size, network topology, target sequences"/>
+    </module>
+  </file-map>
+
+  <invariants>
+    <invariant id="no-math-random">World generation must use seeded RNG, never Math.random()</invariant>
+    <invariant id="texture-dispose">Glyph textures must be disposed when rebuilt to avoid GPU memory leaks</invariant>
+    <invariant id="context-bounded">Context window has a fixed max size; overflow is handled explicitly</invariant>
+    <invariant id="glyph-only-visuals">No non-glyph visuals without an explicit art-direction task</invariant>
+  </invariants>
+
+  <verification>
+    <check type="visual">Open dev server, confirm glyph field renders, camera orbits, no console errors</check>
+    <check type="mechanic">Collect tokens, verify HUD updates, trigger inference sequence, verify world mutation</check>
+    <check type="performance">FPS stays >= 55 at default field size (5000 glyphs)</check>
+  </verification>
+</agent-prime>
