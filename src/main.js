@@ -148,7 +148,7 @@ const SHAPES = {
     const ph = Math.acos(2 * rng() - 1);
     // Cluster centers placed on a larger sphere
     const cth = (ci / p.clusterCount) * Math.PI * 2;
-    const cph = Math.acos(2 * ((ci * 0.618) % 1) * 2 - 1);
+    const cph = Math.acos(2 * ((ci * 0.618) % 1) - 1);
     const cR = p.radius * 0.6;
     const cx = cR * Math.sin(cph) * Math.cos(cth);
     const cy = cR * Math.sin(cph) * Math.sin(cth) * p.flatten;
@@ -158,7 +158,7 @@ const SHAPES = {
     out[2] = cz + cr * Math.cos(ph);
   },
   grid(i, p, out) {
-    const n = Math.ceil(Math.cbrt(count));
+    const n = Math.ceil(Math.cbrt(FIELD_COUNT));
     const idx = i;
     const gx = idx % n;
     const gy = Math.floor(idx / n) % n;
@@ -950,7 +950,7 @@ const SHAPES = {
   sphereCluster(i, p, out) {
     const ci = i % 5;
     const cth = (ci / 5) * Math.PI * 2;
-    const cph = Math.acos(2 * ((ci * 0.618) % 1) * 2 - 1);
+    const cph = Math.acos(2 * ((ci * 0.618) % 1) - 1);
     const cR = p.radius * 0.5;
     const cx = cR * Math.sin(cph) * Math.cos(cth);
     const cy = cR * Math.sin(cph) * Math.sin(cth);
@@ -987,15 +987,6 @@ const SHAPES = {
     out[0] = (R + r * Math.cos(v)) * Math.cos(u);
     out[1] = r * Math.sin(v);
     out[2] = (R + r * Math.cos(v)) * Math.sin(u);
-  },
-  torusTwist(i, p, out) {
-    const u = (i / 1000) * Math.PI * 2;
-    const R = p.radius;
-    const r = p.tubeR * 0.5;
-    const twist = u * 3;
-    out[0] = (R + r * Math.cos(twist)) * Math.cos(u);
-    out[1] = r * Math.sin(twist);
-    out[2] = (R + r * Math.cos(twist)) * Math.sin(u);
   },
   torusFlower(i, p, out) {
     const u = (i / 1000) * Math.PI * 2;
@@ -1710,6 +1701,15 @@ const SHAPES = {
 const SHAPE_KEYS = Object.keys(SHAPES);
 
 function pickShapeParams(key) {
+  const p = {
+    radius: 40 + rng() * 40,
+    flatten: 0.4 + rng() * 0.8,
+    distPow: 0.4 + rng() * 0.8,
+    tubeR: 5 + rng() * 15,
+    arms: 2 + Math.floor(rng() * 5),
+    twist: 2 + rng() * 6,
+    spread: 0.3 + rng() * 0.8,
+    thickness: 3 + rng() * 12,
     strands: 2 + Math.floor(rng() * 4),
     turns: 2 + Math.floor(rng() * 5),
     clusterCount: 3 + Math.floor(rng() * 8),
