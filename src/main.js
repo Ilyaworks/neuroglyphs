@@ -2066,7 +2066,7 @@ try {
     setTimeout(() => boot.remove(), 700);
   });
 
-  console.log('[NEUROGLYPHS] demo booted. seed=' + SEED + ' glyphs=' + TOTAL_GLYPHS.toLocaleString());
+  console.log('[NEUROGLYPHS] demo booted. seed=' + SEED + ' shape=' + field.shapeKey + ' glyphs=' + TOTAL_GLYPHS.toLocaleString());
 } catch (err) {
   console.error(err);
   fail(err && err.message ? err.message : String(err));
