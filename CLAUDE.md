@@ -33,11 +33,36 @@ When designing or implementing any feature, ask: "Does this reinforce the tokens
 
 ## Recurring Mistakes (add here when agents keep tripping over the same thing)
 
-- (none recorded yet — first session)
+- **Seed round-trip failure:** When encoding multi-field seeds, naive string concatenation of
+  per-field base36 chars produces ambiguous boundaries. Fix: pack all fields into a single
+  integer (bit-shift + OR) then convert to base36 once. Always test round-trip with ≥200
+  random parameter sets, not just a few hand-picked ones.
+- **Export mismatch between module and test:** `seed.js` initially exported a nested object
+  shape; the test expected a flat return. Always write the test first (or at least define the
+  expected shape in the task file) before implementing the module.
+- **`randomSeed` signature drift:** Task file says `randomSeed(rng)` but implementation
+  needed `randomSeed(rng?)` (optional). Document the actual signature in the task file's
+  implementation notes to avoid confusion in the next session.
+
+## Session Workflow Rules
+
+- **One task per session.** Complete one `T##` task file, update all bookkeeping, commit,
+  push, then STOP. Do not start the next task in the same session. This keeps sessions
+  small, reviewable, and parallelizable across agents.
+- **Read STATE.md first, update it last.** The "Current Task" section tells you exactly
+  where to pick up. The session log at the bottom is append-only.
+- **Update ALL bookkeeping before committing:** task file status → BACKLOG.md → STATE.md
+  → knowledge-graph (if behavior changed) → CLAUDE.md (if new conventions/mistakes found).
+- **Commit message format:** `T##: <imperative summary>` (e.g. `T02: add seed engine with bit-packed encode/decode`).
 
 ## Extracted From Past Session Logs
 
-- (none yet — to be filled by a dedicated log-analysis session)
+- **T02 lesson:** Bit-packing is the correct approach for multi-field seed encoding.
+  66 bits total (12+6+12+6+6+6+12+6) fits in a `BigInt` comfortably. Use
+  `BigInt.asUintN(64, value)` to clamp, then `.toString(36)`.
+- **T02 lesson:** `decodeSeed` should return a *fresh* `mulberry32` rng each call so
+  downstream code can consume it independently. The rng seed is derived from the
+  decoded parameter values (not the raw string) to keep determinism tied to params.
 
 ## Environment Notes
 

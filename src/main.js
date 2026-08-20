@@ -7,12 +7,19 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mulberry32 } from './core/rng.js';
 import { GLYPHS, PALETTE } from './core/glyphs.js';
 import { buildGlyphAtlas } from './core/glyphTexture.js';
+import { decodeSeed, validateSeed } from './core/seed.js';
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (determinism: same seed -> same field layout)
+// The seed comes from the ?seed= URL param (lowercase base36, <=16 chars).
+// decodeSeed returns a fresh deterministic rng + decoded world params.
 // ---------------------------------------------------------------------------
-const SEED = 0x9e3779b9;
-const rng = mulberry32(SEED);
+const DEFAULT_SEED = 'neuroglyphs';
+const params = new URLSearchParams(window.location.search);
+const seedString = validateSeed(params.get('seed')) ? params.get('seed') : DEFAULT_SEED;
+const seed = decodeSeed(seedString);
+const rng = seed.rng;
+const SEED = seedString;
 
 // Palette as THREE.Color objects (hex list lives in core/glyphs.js).
 const palette = PALETTE.map((h) => new THREE.Color(h));

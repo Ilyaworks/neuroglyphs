@@ -8,6 +8,6 @@
     "dev": "node server.js",
     "build": "node -e \"console.log('No build step: static demo served by server.js')\"",
     "preview": "node server.js",
-    "test": "node test/determinism.test.mjs"
+    "test": "node test/determinism.test.mjs && node test/seed.test.mjs"
   }
 }

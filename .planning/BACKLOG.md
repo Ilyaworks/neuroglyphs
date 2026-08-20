@@ -7,8 +7,8 @@
 |------|--------------------------------------------------|--------|---------------------------------|------------|
 | T00  | Project scaffold: Three.js boot loop             | done   | tasks/T00-scaffold.md           | —          |
 | T01  | Seeded RNG + glyph alphabet + canvas textures    | done   | tasks/T01-glyph-textures.md     | T00        |
-| T02  | Seed engine: encode/decode, world params         | next   | tasks/T02-seed-engine.md        | T01        |
-| T03  | World generator v1: structures + particles       | todo   | tasks/T03-world-gen.md          | T02        |
+| T02  | Seed engine: encode/decode, world params         | done   | tasks/T02-seed-engine.md        | T01        |
+| T03  | World generator v1: structures + particles       | next   | tasks/T03-world-gen.md          | T02        |
 | T04  | Music engine: Web Audio, FFT, reactivity hooks   | todo   | tasks/T04-music-engine.md       | T02        |
 | T05  | Visual reactor: pulsation, rim light, spectral   | todo   | tasks/T05-visual-reactor.md     | T03, T04   |
 | T06  | Movement: fly-cam + freeze/inspect mode          | todo   | tasks/T06-movement.md           | T03        |

@@ -1,6 +1,6 @@
 # T02 — Seed Engine
 
-**Status:** next
+**Status:** done (2026-08-20)
 **Depends on:** T01
 **Files to create/modify:**
 - `src/core/seed.js` (new)
@@ -67,10 +67,20 @@ uses ONLY this rng (INV-1, INV-3).
 
 ## Acceptance Criteria
 
-- [ ] `npm test` passes (seed determinism + round-trip).
-- [ ] `?seed=abc123xyz` in URL changes the glyph field deterministically.
-- [ ] No `Math.random()` in `seed.js`.
-- [ ] Seed string is ≤ 16 chars, only `[0-9a-z]`.
+- [x] `npm test` passes (seed determinism + round-trip 200x).
+- [x] `?seed=abc123xyz` in URL changes the glyph field deterministically.
+- [x] No `Math.random()` in `seed.js`.
+- [x] Seed string is ≤ 16 chars, only `[0-9a-z]`.
+
+## Implementation Notes (2026-08-20)
+
+- 8 fields packed into 66 bits (12+6+12+6+6+6+12+6) → base36, ≤16 chars.
+- `decodeSeed` returns flat params + fresh `mulberry32` rng (deterministic).
+- `randomSeed(rng?)` — accepts optional rng for reproducible random seeds.
+- `GROUP_MAX` exported for bounds checking.
+- `validateSeed(s)` → boolean (regex `^[0-9a-z]{1,16}$`).
+- `main.js` reads `?seed=` param, falls back to `neuroglyphs` default.
+- Test: `test/seed.test.mjs` — determinism, round-trip 200x, validation, bounds.
 
 ## Invariants
 

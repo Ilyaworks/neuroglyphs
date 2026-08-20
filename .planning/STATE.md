@@ -5,8 +5,8 @@
 ## Current Task
 
 **Concept v2 adopted (2026-08-20).** Old token/inference concept deprecated.
-T00 + T01 done (scaffold + seeded RNG/glyph textures) — still valid under v2.
-Next: **T02 — Seed engine (encode/decode, world params)**.
+T00 + T01 + T02 done (scaffold + seeded RNG/glyph textures + seed engine).
+Next: **T03 — World generator v1 (structures + particles)**.
 
 ## Last Session Summary
 
@@ -20,6 +20,12 @@ Next: **T02 — Seed engine (encode/decode, world params)**.
   kaleidoscope explorer (no goal, no death, music-driven, seed=world). BACKLOG rewritten
   (T02–T12 v2). Old token/inference concept deprecated. New task files T02–T12 created.
   Knowledge graph updated. CLAUDE.md updated with v2 note.
+- 2026-08-20: **T02 done — seed engine.** `src/core/seed.js`: encode/decode of 8 world
+  fields (structure, mood, palette, density, fractal, motion, music, nonEuclidean) packed
+  into 66 bits → base36 seed ≤16 chars. `decodeSeed` returns flat params + deterministic
+  mulberry32 rng. `randomSeed(rng?)`, `validateSeed`, `GROUP_MAX`. `test/seed.test.mjs`
+  (determinism, round-trip 200x, validation) → `npm test` = DETERMINISM_OK + SEED_OK.
+  `main.js` now reads `?seed=` URL param and uses decoded rng.
 
 ## How to Pick Up Work
 
@@ -36,6 +42,7 @@ Next: **T02 — Seed engine (encode/decode, world params)**.
 | 2026-08-19 | —    | Repo scaffolded: planning docs, knowledge graph, backlog T00–T12 |
 | 2026-08-20 | T00  | Scaffold done: glyph-field demo (index.html + src/main.js, Three.js r160 import map), server.js static server (npm run dev), GitHub repo Ilyaworks/neuroglyphs |
 | 2026-08-20 | T01  | Seeded RNG (mulberry32), glyph alphabet + palette, canvas texture atlas; main.js refactored to import modules; determinism test added (npm test -> DETERMINISM_OK) |
+| 2026-08-20 | T02  | Seed engine: 8 world fields bit-packed into base36 seed (≤16 chars); encode/decode/random/validate; deterministic rng per seed; seed.test.mjs (round-trip 200x); main.js reads ?seed= URL param |
 
 ## Known Risks
 
