@@ -1,76 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project-graph>
-  <project name="NEUROGLYPHS" type="indie-game" stack="vite+vanilla-js+three.js">
-    <description>3D glyph-field game: fly through a neural network of symbols, collect tokens into a bounded context window, trigger inference events that mutate the world.</description>
-  </project>
+<project name="neuroglyphs" version="2.0" updated="2026-08-20">
+  <description>
+    NEUROGLYPHS v2 — endless generative kaleidoscope explorer.
+    3D worlds made entirely of glyphs, formulas, and light.
+    Seed = world. Music = heartbeat. No goal, no death.
+  </description>
+
+  <invariants>
+    <invariant id="INV-1">No Math.random() for world generation — seeded PRNG only.</invariant>
+    <invariant id="INV-2">All visuals are glyph-based (or shader effects on glyph geometry).</invariant>
+    <invariant id="INV-3">One world = one seed. Same seed = same world (deterministic).</invariant>
+    <invariant id="INV-4">No player death, no fail state.</invariant>
+    <invariant id="INV-5">Music drives all pulsation/reactivity (built-in generator if no file).</invariant>
+    <invariant id="INV-6">Exit is always rectangular, always findable.</invariant>
+    <invariant id="INV-7">Deterministic: same seed + same collected things = same next world.</invariant>
+    <invariant id="INV-8">No text in-world (tasks communicated visually/audibly).</invariant>
+  </invariants>
 
   <modules>
-    <module id="core" path="src/core/" status="scaffold">
-      <depends-on>three</depends-on>
-      <provides>engine, game loop, input, camera</provides>
+    <module id="m-scaffold" file="index.html + src/main.js + server.js" status="done">
+      <desc>Three.js r160 boot loop, import map, static server, render loop.</desc>
     </module>
-    <module id="world" path="src/world/" status="scaffold">
-      <depends-on>core</depends-on>
-      <depends-on>data</depends-on>
-      <provides>glyph field, network topology, synapses, signal pulses</provides>
+    <module id="m-rng" file="src/core/rng.js" status="done">
+      <desc>mulberry32 seeded PRNG, string→uint32 hash.</desc>
     </module>
-    <module id="systems" path="src/systems/" status="scaffold">
-      <depends-on>core</depends-on>
-      <depends-on>world</depends-on>
-      <provides>context window, inference engine, audio</provides>
+    <module id="m-glyphs" file="src/core/glyphs.js" status="done">
+      <desc>Glyph alphabet (symbols, formulas, CJK), palette, per-mood sets.</desc>
     </module>
-    <module id="ui" path="src/ui/" status="scaffold">
-      <depends-on>systems</depends-on>
-      <provides>DOM HUD (context window, FPS, prompts)</provides>
+    <module id="m-glyphtex" file="src/core/glyphTexture.js" status="done">
+      <desc>Canvas texture atlas from glyph set + palette.</desc>
     </module>
-    <module id="data" path="src/data/" status="scaffold">
-      <provides>glyph alphabet, seeded PRNG, level definitions</provides>
+    <module id="m-seed" file="src/core/seed.js" status="todo">
+      <desc>Seed encode/decode (base36 string), world params extraction.</desc>
+    </module>
+    <module id="m-worldgen" file="src/world/generator.js" status="todo">
+      <desc>Seeded world generation: structure types, particles, exits.</desc>
+    </module>
+    <module id="m-music" file="src/audio/musicEngine.js" status="todo">
+      <desc>Web Audio: file load, FFT, tempo, mood, reactivity hooks.</desc>
+    </module>
+    <module id="m-reactor" file="src/world/visualReactor.js" status="todo">
+      <desc>Music→visuals: pulsation, rim light, spectral, phase, echo.</desc>
+    </module>
+    <module id="m-movement" file="src/player/movement.js" status="todo">
+      <desc>Fly-cam WASD+mouse, boost/slow, freeze/inspect mode.</desc>
+    </module>
+    <module id="m-transition" file="src/world/transition.js" status="todo">
+      <desc>Exit portal, dissolve animation, re-seed, world book.</desc>
+    </module>
+    <module id="m-advanced" file="src/world/advancedVisuals.js" status="todo">
+      <desc>Reflections, distortion, mercury, temporal echoes, matryoshka.</desc>
+    </module>
+    <module id="m-mood" file="src/world/moodSystem.js" status="todo">
+      <desc>Mood palettes, behavior modifiers, atmosphere per mood.</desc>
+    </module>
+    <module id="m-neuro" file="src/world/neuroPrompt.js" status="todo">
+      <desc>Text→LLM→JSON param tweaks (paid feature, stub for now).</desc>
+    </module>
+    <module id="m-seeds" file="src/world/curatedSeeds.js" status="todo">
+      <desc>100 curated seeds, seed sharing, built-in generative music.</desc>
+    </module>
+    <module id="m-polish" file="src/ui/menu.js + src/ui/settings.js" status="todo">
+      <desc>Menu, settings, audio upload, performance tuning.</desc>
     </module>
   </modules>
 
-  <flows>
-    <flow id="boot">
-      <step>index.html loads main.js</step>
-      <step>main.js creates Engine (scene, renderer, camera)</step>
-      <step>Engine loads level from data/levels.js</step>
-      <step>World builds glyph field (seeded) + network topology</step>
-      <step>Systems init (context, inference, audio)</step>
-      <step>HUD mounts DOM overlay</step>
-      <step>Game loop starts (update + render)</step>
-    </flow>
-    <flow id="token-collection">
-      <step>Player moves near a token glyph</step>
-      <step>Press E (or auto-collect on contact)</step>
-      <step>Context system appends token (evict oldest if full)</step>
-      <step>HUD updates context window display</step>
-      <step>Audio plays collect blip</step>
-      <step>Inference system checks for completed target sequence</step>
-    </flow>
-    <flow id="inference-event">
-      <step>Target token sequence detected in context window</step>
-      <step>Inference event fires: world mutation (new field region, gate opens, glyph recolor)</step>
-      <step>Audio plays stinger</step>
-      <step>HUD shows event message</step>
-      <step>Progress saved to level state</step>
-    </flow>
-    <flow id="signal-propagation">
-      <step>Inference event emits a pulse at trigger node</step>
-      <step>Pulse travels along synapses with speed + decay</step>
-      <step>Glyphs near active synapses brighten / shift hue</step>
-      <step>Pulse expires after N hops</step>
-    </flow>
-  </flows>
+  <dependencies>
+    <dep from="m-seed" to="m-rng"/>
+    <dep from="m-worldgen" to="m-seed"/>
+    <dep from="m-worldgen" to="m-glyphs"/>
+    <dep from="m-worldgen" to="m-glyphtex"/>
+    <dep from="m-music" to="m-seed"/>
+    <dep from="m-reactor" to="m-worldgen"/>
+    <dep from="m-reactor" to="m-music"/>
+    <dep from="m-movement" to="m-worldgen"/>
+    <dep from="m-transition" to="m-reactor"/>
+    <dep from="m-transition" to="m-movement"/>
+    <dep from="m-advanced" to="m-reactor"/>
+    <dep from="m-mood" to="m-worldgen"/>
+    <dep from="m-neuro" to="m-worldgen"/>
+    <dep from="m-seeds" to="m-transition"/>
+    <dep from="m-polish" to="m-advanced"/>
+    <dep from="m-polish" to="m-mood"/>
+    <dep from="m-polish" to="m-neuro"/>
+  </dependencies>
 
-  <invariants>
-    <invariant id="no-math-random" scope="world,data">World generation uses seeded PRNG only</invariant>
-    <invariant id="texture-dispose" scope="world,data">Rebuilt glyph textures are disposed</invariant>
-    <invariant id="context-bounded" scope="systems">Context window size is fixed per level; overflow handled explicitly</invariant>
-    <invariant id="glyph-only-visuals" scope="world,ui">All visuals are glyph-based</invariant>
-    <invariant id="deterministic-collection" scope="world,systems">Same seed + same player path = same token set</invariant>
-  </invariants>
-
-  <entry-points>
-    <entry file="index.html" role="HTML shell + HUD mount + main.js import"/>
-    <entry file="src/main.js" role="Bootstrap: create engine, wire modules, start loop"/>
-  </entry-points>
-</project-graph>
+  <tasks>
+    <task id="T00" module="m-scaffold" status="done" file=".planning/tasks/T00-scaffold.md"/>
+    <task id="T01" module="m-rng,m-glyphs,m-glyphtex" status="done" file=".planning/tasks/T01-glyph-textures.md"/>
+    <task id="T02" module="m-seed" status="next" file=".planning/tasks/T02-seed-engine.md"/>
+    <task id="T03" module="m-worldgen" status="todo" file=".planning/tasks/T03-world-gen.md"/>
+    <task id="T04" module="m-music" status="todo" file=".planning/tasks/T04-music-engine.md"/>
+    <task id="T05" module="m-reactor" status="todo" file=".planning/tasks/T05-visual-reactor.md"/>
+    <task id="T06" module="m-movement" status="todo" file=".planning/tasks/T06-movement.md"/>
+    <task id="T07" module="m-transition" status="todo" file=".planning/tasks/T07-transition.md"/>
+    <task id="T08" module="m-advanced" status="todo" file=".planning/tasks/T08-advanced-visuals.md"/>
+    <task id="T09" module="m-mood" status="todo" file=".planning/tasks/T09-mood-system.md"/>
+    <task id="T10" module="m-neuro" status="todo" file=".planning/tasks/T10-neuro-prompt.md"/>
+    <task id="T11" module="m-seeds" status="todo" file=".planning/tasks/T11-seeds-sharing.md"/>
+    <task id="T12" module="m-polish" status="todo" file=".planning/tasks/T12-polish.md"/>
+  </tasks>
+</project>

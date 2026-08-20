@@ -4,8 +4,9 @@
 
 ## Current Task
 
-**T01 done** — seeded RNG, glyph alphabet, and canvas texture atlas are in place and verified.
-Next: **T02 — 3D glyph field (instanced, 5k+ glyphs)**.
+**Concept v2 adopted (2026-08-20).** Old token/inference concept deprecated.
+T00 + T01 done (scaffold + seeded RNG/glyph textures) — still valid under v2.
+Next: **T02 — Seed engine (encode/decode, world params)**.
 
 ## Last Session Summary
 
@@ -13,10 +14,12 @@ Next: **T02 — 3D glyph field (instanced, 5k+ glyphs)**.
 - 2026-08-20: T00 scaffold completed — playable glyph-field demo (`index.html` + `src/main.js` on
   Three.js r160 via import map, zero-build). `server.js` static server added (`npm run dev`).
   GitHub repo created: https://github.com/Ilyaworks/neuroglyphs
-- 2026-08-20: `.planning/CONCEPT.md` created — one-line pitch, core fantasy, pillars, world
-  (glyph field / network topology / signal pulses), core loop, all systems (context window,
-  inference engine, world mutation, HUD, audio, levels), art direction, controls, tech stack,
-  invariants, content plan, and 10 open questions for design decisions.
+- 2026-08-20: T01 done — seeded RNG (mulberry32), glyph alphabet + palette, canvas texture atlas;
+  determinism test added (`npm test` -> DETERMINISM_OK).
+- 2026-08-20: **Concept v2 rewrite.** `.planning/CONCEPT.md` fully replaced: generative
+  kaleidoscope explorer (no goal, no death, music-driven, seed=world). BACKLOG rewritten
+  (T02–T12 v2). Old token/inference concept deprecated. New task files T02–T12 created.
+  Knowledge graph updated. CLAUDE.md updated with v2 note.
 
 ## How to Pick Up Work
 
