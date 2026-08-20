@@ -31,7 +31,7 @@ Next: **T03 — World generator v1 (structures + particles)**.
 
 1. Read this file to find the current task.
 2. Open the task file in `.planning/tasks/` and follow its steps.
-3. Keep invariants from `CLAUDE.md` and `ai/knowledge-graph/agent-prime.xml`.
+3. Keep invariants from `.clinerules` and `ai/knowledge-graph/agent-prime.xml`.
 4. When done: mark task `done` in the task file and `BACKLOG.md`, append a session
    summary below, update `ai/knowledge-graph/` if behavior changed, commit with `T##:` prefix.
 
@@ -43,6 +43,15 @@ Next: **T03 — World generator v1 (structures + particles)**.
 | 2026-08-20 | T00  | Scaffold done: glyph-field demo (index.html + src/main.js, Three.js r160 import map), server.js static server (npm run dev), GitHub repo Ilyaworks/neuroglyphs |
 | 2026-08-20 | T01  | Seeded RNG (mulberry32), glyph alphabet + palette, canvas texture atlas; main.js refactored to import modules; determinism test added (npm test -> DETERMINISM_OK) |
 | 2026-08-20 | T02  | Seed engine: 8 world fields bit-packed into base36 seed (≤16 chars); encode/decode/random/validate; deterministic rng per seed; seed.test.mjs (round-trip 200x); main.js reads ?seed= URL param |
+
+- 2026-08-20: **Docs purged of concept v1.** `CLAUDE.md` deleted (the working agent is Qwen
+  via Cline, which reads `.clinerules` instead); its durable rules, invariants and recurring
+  mistakes moved into `.clinerules`. `AGENTS.md`, `README.md`,
+  `ai/knowledge-graph/agent-prime.xml` and `e2e-scenarios.yaml` rewritten for v2 — the old
+  token/context-window/inference wording is gone, as are references to the never-existing
+  `src/systems/`, `src/ui/`, `src/data/` and to Vite. `project-graph.xml` statuses corrected
+  (m-seed and T02 are done, T03 is next). Remaining v1 leftover lives in code:
+  `buildContextRing` in `src/main.js`, to be removed in T03.
 
 ## Known Risks
 

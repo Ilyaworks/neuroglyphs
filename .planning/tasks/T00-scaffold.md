@@ -1,4 +1,9 @@
-# T00 — Project scaffold: Vite + Three.js boot loop
+# T00 — Project scaffold: Three.js boot loop
+
+> **Historical note (2026-08-20):** this file describes the originally planned Vite
+> scaffold. What was actually shipped is a zero-build setup — Three.js r160 through a
+> CDN import map in `index.html`, served by `server.js` (`npm run dev`). There is no
+> Vite, no bundler and no dependencies. Read the stack from `AGENTS.md`, not from here.
 
 **Status:** in-progress
 **Depends on:** —

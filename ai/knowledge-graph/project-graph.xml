@@ -30,7 +30,7 @@
     <module id="m-glyphtex" file="src/core/glyphTexture.js" status="done">
       <desc>Canvas texture atlas from glyph set + palette.</desc>
     </module>
-    <module id="m-seed" file="src/core/seed.js" status="todo">
+    <module id="m-seed" file="src/core/seed.js" status="done">
       <desc>Seed encode/decode (base36 string), world params extraction.</desc>
     </module>
     <module id="m-worldgen" file="src/world/generator.js" status="todo">
@@ -88,8 +88,8 @@
   <tasks>
     <task id="T00" module="m-scaffold" status="done" file=".planning/tasks/T00-scaffold.md"/>
     <task id="T01" module="m-rng,m-glyphs,m-glyphtex" status="done" file=".planning/tasks/T01-glyph-textures.md"/>
-    <task id="T02" module="m-seed" status="next" file=".planning/tasks/T02-seed-engine.md"/>
-    <task id="T03" module="m-worldgen" status="todo" file=".planning/tasks/T03-world-gen.md"/>
+    <task id="T02" module="m-seed" status="done" file=".planning/tasks/T02-seed-engine.md"/>
+    <task id="T03" module="m-worldgen" status="next" file=".planning/tasks/T03-world-gen.md"/>
     <task id="T04" module="m-music" status="todo" file=".planning/tasks/T04-music-engine.md"/>
     <task id="T05" module="m-reactor" status="todo" file=".planning/tasks/T05-visual-reactor.md"/>
     <task id="T06" module="m-movement" status="todo" file=".planning/tasks/T06-movement.md"/>

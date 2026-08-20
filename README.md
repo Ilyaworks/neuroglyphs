@@ -1,36 +1,48 @@
 # Neuroglyphs
 
-An indie browser game with a niche glyph aesthetic: a 3D world made entirely of
-floating characters where you manipulate tokens inside a finite context window
-to complete objectives.
+An endless generative kaleidoscope explorer: infinite 3D worlds made entirely of glyphs,
+formulas and light. One seed produces one deterministic world; the things you collect fold
+back into the seed and shape the next world. Music is the heartbeat — everything pulses and
+reacts to it.
 
-> Working title. The core fantasy: you are a small neural process arranging tokens
-> in a limited context to make the network resonate.
+> No goal, no victory, no death. Exploration and atmosphere are the point. Every world has
+> exactly one rectangular exit; fill its shaped hole correctly and the next world is a
+> curated one, ignore it and the next world is random.
+
+Full design: `.planning/CONCEPT.md` (concept v2, adopted 2026-08-20).
 
 ## Status
 
-Early scaffolding. See .planning/STATE.md for the live state and
-.planning/BACKLOG.md for the task backlog.
+Early. T00–T02 done: boot loop, seeded RNG, glyph alphabet and canvas texture atlas, and the
+seed engine (8 world fields bit-packed into a base36 code). T03 (world generator) is next.
+Live state: `.planning/STATE.md`. Task queue: `.planning/BACKLOG.md`.
 
 ## Quick start
 
+No dependencies and no build step — Three.js r160 comes from a CDN import map.
+
 ```bash
-npm install
 npm run dev
 ```
 
-Open the printed local URL. npm run build produces a static dist/.
+Open the printed local URL. Add `?seed=abc123` to load a specific world.
+`npm test` runs the determinism and seed round-trip checks.
 
 ## How agents work on this repo
 
-Read AGENTS.md first - it defines the session protocol, the decomposition rules,
-and how to stay in sync with parallel agents. Long-term context lives in CLAUDE.md.
+`AGENTS.md` defines the session protocol and decomposition rules; `.clinerules` holds the
+durable project rules, invariants and recurring mistakes (it replaced CLAUDE.md — the
+working agent is Qwen via Cline, not Claude Code).
 
 ## Layout
 
-- src/ - game source (ES modules, three.js)
-- ai/knowledge-graph/ - machine-readable project model
-- .planning/ - backlog, state, and per-task files
+- `index.html`, `src/main.js` — entry point, no bundler
+- `src/core/` — seeded RNG, seed engine, glyph alphabet, canvas texture atlas
+- `src/world/` — world generation (from T03 onward)
+- `test/` — plain node test files, run by `npm test`
+- `server.js` — static dev server
+- `ai/knowledge-graph/` — machine-readable project model
+- `.planning/` — concept, backlog, state, per-task files
 
 ## License
 

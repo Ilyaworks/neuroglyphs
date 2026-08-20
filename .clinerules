@@ -1,0 +1,77 @@
+# Rules for agents working in this repo with a small local model (Qwen via Cline)
+
+## Read order at session start
+1. `.planning/STATE.md` — current task and what is actually done. Read first, update last.
+2. The task file it points to, under `.planning/tasks/`.
+3. `.planning/CONCEPT.md` — the design source of truth. Read only what your task needs.
+Ready-to-paste prompts for the current task live in `.planning/prompts-T03.md`.
+
+## How to work
+- Work in small steps. One tool call per message.
+- Never read more files than the current task names. Never read node_modules, .git, or build output.
+- If a fact is not in the files you were told to read, say you don't know and stop.
+  Do not guess file names, function names, or paths.
+- Do not touch files the task did not name. Do not reformat code you were not asked to change.
+- When the task says STOP, stop and report: what you changed, what command you ran, and its exact output.
+- On Windows use `cd /d` when changing drives, or pass absolute paths instead of relying on cd.
+- **One task per session.** Finish one `T##`, update bookkeeping, commit, then STOP.
+  Do not start the next task in the same session.
+- End-of-session bookkeeping, in this order: task file status → `.planning/BACKLOG.md`
+  → `.planning/STATE.md` (append a session-log row) → knowledge-graph files if behavior changed.
+- Commit message format: `T##: <imperative summary>`.
+
+## What this project is (concept v2, adopted 2026-08-20)
+
+NEUROGLYPHS is an endless generative kaleidoscope explorer. You fly through infinite
+abstract 3D worlds made entirely of glyphs, formulas and light. Each world is generated
+deterministically from a seed; collected "things" fold back into the seed and shape the
+next world. Music is the heartbeat — everything pulses and reacts to it. No goal, no
+victory, no death. Every world has exactly ONE rectangular exit with a shaped hole.
+
+Pillars: seed = world; music = heartbeat; no goal / no death; everything is symbols;
+worlds are collectible (100 curated + infinite random + share by code); one exit.
+
+**Concept v1 is dead.** If you find text about collecting tokens into a bounded context
+window, inference events, synapses, neural-network layers, or the folders `src/systems/`,
+`src/ui/`, `src/data/` — that is stale wording, not a requirement. Delete it instead of
+implementing it. The last code leftover is `buildContextRing` in `src/main.js`, scheduled
+for removal in T03.
+
+## Invariants
+- INV-1: no `Math.random()` in world generation — seeded PRNG only (`src/core/rng.js`).
+- INV-2: all visuals are glyph-based.
+- INV-3: same seed = same world.
+- INV-4: no player death, no fail state.
+- INV-5: music drives pulsation and reactivity.
+- INV-6: the exit is always rectangular and always findable.
+- INV-8: no text inside the world; textual feedback belongs to the DOM HUD.
+
+## Facts that are easy to get wrong
+- The seed engine is `src/core/seed.js`, the PRNG is `src/core/rng.js`. There is no `src/data/`.
+- There is **no bundler and no dependencies**. Three.js r160 arrives through a CDN import map
+  in `index.html`. `npm run dev` (= `npm start`) serves static files via `server.js`;
+  `npm run build` is deliberately a no-op.
+- `npm test` runs plain node files and must print `DETERMINISM_OK` and `SEED_OK`
+  (plus `WORLD_OK` once T03 lands).
+- **Node tests cannot import `three`** — the import map only exists in the browser.
+  Keep pure math (positions, counts, params) in separate exported functions and test those.
+- Glyph textures: dispose them on rebuild, or GPU memory leaks.
+- Commit messages and task files in English; docs and in-game text may be Russian.
+
+## Recurring mistakes (add to this list when they repeat)
+- **Seed round-trip:** concatenating per-field base36 chars gives ambiguous boundaries.
+  Pack all fields into one integer (shift + OR), then convert to base36 once.
+  Test the round-trip on ≥200 random parameter sets.
+- **Export mismatch between module and test:** define the expected return shape in the task
+  file before implementing, or write the test first.
+- **Signature drift:** `randomSeed(rng?)` takes an optional argument, unlike what an older
+  task file claimed. Record actual signatures in the task file.
+- **Stale docs sending agents the wrong way:** an agent read the v1 concept and started
+  designing a context-window mechanic that no longer exists. When a doc disagrees with
+  `.planning/STATE.md`, STATE.md and CONCEPT.md win — and fix the stale doc separately.
+- **`cd` in the terminal not taking effect:** an agent ran `git status` from the wrong
+  directory and concluded the repo was corrupted. Use `cd /d` or absolute paths.
+
+## Environment
+- Windows 11, cmd shell, git available, `gh` CLI not installed.
+- No `gh` auth: for pushing, use a token in the remote URL or ask the user. Never commit tokens.

@@ -1,65 +1,65 @@
-# E2E scenarios for NEUROGLYPHS.
-# Each scenario describes a user-visible flow and how to verify it manually (no test runner yet).
-# Update this file whenever behavior/flows change.
+# E2E scenarios for NEUROGLYPHS (concept v2).
+# Each scenario describes a user-visible flow and how to verify it.
+# Determinism is covered by npm test; everything else is manual for now.
+# Update this file whenever behavior or flows change.
 
 scenarios:
   - id: boot
-    name: Game boots and renders glyph field
+    name: Game boots and renders a seeded world
     steps:
-      - Run `npm run dev`
-      - Open printed URL in browser
+      - Run npm run dev
+      - Open the printed URL in a browser
     expected:
       - Page loads without console errors
-      - 3D glyph field visible (thousands of character sprites)
-      - Camera responds to mouse look (pointer lock) and WASD movement
-      - HUD visible with empty context window and FPS counter
+      - A 3D world of glyph sprites is visible (thousands of characters, formulas, symbols)
+      - Camera responds to input
+      - No solid meshes or image textures anywhere, only glyphs
 
-  - id: token-collection
-    name: Player collects tokens into context window
+  - id: seed-determinism
+    name: The same seed always rebuilds the same world
     steps:
-      - Fly toward a highlighted token glyph
-      - Press E within collection radius
-      - Repeat for several tokens
+      - Open the page with seed=abc123, note the structure and where the exit sits
+      - Reload the same URL
+      - Open the page with seed=xyz789
     expected:
-      - Collected token appears in HUD context window
-      - Token glyph despawns from world (or dims)
-      - Collect blip sound plays
-      - Context window fills up to its max size; oldest token evicted on overflow
+      - The reloaded world is identical (same geometry, same exit position)
+      - The other seed produces a visibly different structure
+      - npm test passes the automated determinism checks
 
-  - id: inference-event
-    name: Token sequence triggers inference and mutates world
+  - id: exit-portal
+    name: Every world has exactly one findable exit
     steps:
-      - Collect the target sequence defined in level data (e.g. "CTX" glyphs in order)
+      - Load any seed and look around the world
     expected:
-      - Inference event fires: visible world mutation (region recolor / new field chunk / gate opens)
-      - Stinger sound plays
-      - HUD shows event message
-      - Signal pulse propagates along synapses from trigger point
+      - Exactly one exit exists
+      - It is a rectangular frame with a shaped hole in the middle
+      - It is visually distinct from the structure (glowing) and reachable
 
-  - id: signal-propagation
-    name: Synapse pulses animate after inference
+  - id: music-reactivity
+    name: Visuals pulse with the music
+    status: planned-T04-T05
     steps:
-      - Trigger an inference event
-      - Watch synapse lines near the trigger node
+      - Load a world, then load an audio file (or let the built-in generator run)
     expected:
-      - Pulse travels along synapses with visible speed and decay
-      - Glyphs near active synapses brighten or shift hue
-      - Pulse expires after N hops; no lingering glow
+      - Pulsation follows the beat, colour and motion follow frequency and mood
+      - With no audio file loaded, the built-in generator keeps the world alive
+      - Nothing in the world can kill the player or end the run
 
-  - id: determinism
-    name: World layout is deterministic per seed
+  - id: world-transition
+    name: Going through the exit re-seeds into the next world
+    status: planned-T07
     steps:
-      - Load level with seed A, note glyph positions
-      - Reload level with same seed A
+      - Fly into the exit portal
     expected:
-      - Glyph field layout is identical
-      - Changing seed produces a different layout
+      - Dissolve animation, then a new world built from the updated seed
+      - Filling the hole correctly leads to a curated seed, ignoring it leads to a random one
+      - Returning to a previous seed shows the same anchors with new details
 
   - id: performance
-    name: Field stays at 60fps
+    name: The world stays at 60fps
     steps:
-      - Load default level (5000 glyphs)
-      - Move camera around for 30 seconds
+      - Load a default world (5000+ glyphs)
+      - Move the camera around for 30 seconds
     expected:
-      - FPS counter stays >= 55 on integrated GPU
-      - No visible stutter or memory growth (check DevTools memory tab)
+      - FPS stays at or above 55 on integrated GPU
+      - No visible stutter or memory growth (check the DevTools memory tab)
