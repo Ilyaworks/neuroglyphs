@@ -4,7 +4,9 @@
 
 ## Current Task
 
-**T01 — Glyph texture atlas** (next up) — T00 scaffold is DONE.
+**CONCEPT.md written** — full game concept, systems, art direction, and open questions are now
+documented. Next: resolve open questions (esp. #1–#4) and proceed with **T01 — Glyph texture
+atlas** (or re-scope tasks to match the concept's module layout).
 
 ## Last Session Summary
 
@@ -12,6 +14,10 @@
 - 2026-08-20: T00 scaffold completed — playable glyph-field demo (`index.html` + `src/main.js` on
   Three.js r160 via import map, zero-build). `server.js` static server added (`npm run dev`).
   GitHub repo created: https://github.com/Ilyaworks/neuroglyphs
+- 2026-08-20: `.planning/CONCEPT.md` created — one-line pitch, core fantasy, pillars, world
+  (glyph field / network topology / signal pulses), core loop, all systems (context window,
+  inference engine, world mutation, HUD, audio, levels), art direction, controls, tech stack,
+  invariants, content plan, and 10 open questions for design decisions.
 
 ## How to Pick Up Work
 
