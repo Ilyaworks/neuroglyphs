@@ -54,6 +54,8 @@ When designing or implementing any feature, ask: "Does this reinforce the tokens
 - **Update ALL bookkeeping before committing:** task file status → BACKLOG.md → STATE.md
   → knowledge-graph (if behavior changed) → CLAUDE.md (if new conventions/mistakes found).
 - **Commit message format:** `T##: <imperative summary>` (e.g. `T02: add seed engine with bit-packed encode/decode`).
+- **After completing a task, ALWAYS output a ready-to-paste prompt for the next session.**
+  Format: project path, files to read, task ID + goal, specific steps, "STOP after this task".
 
 ## Extracted From Past Session Logs
 
