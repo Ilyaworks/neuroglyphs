@@ -1710,15 +1710,6 @@ const SHAPES = {
 const SHAPE_KEYS = Object.keys(SHAPES);
 
 function pickShapeParams(key) {
-  const p = {
-    radius: 40 + rng() * 40,
-    flatten: 0.4 + rng() * 0.8,
-    distPow: 0.4 + rng() * 0.8,
-    tubeR: 5 + rng() * 15,
-    arms: 2 + Math.floor(rng() * 5),
-    twist: 2 + rng() * 6,
-    spread: 0.3 + rng() * 0.8,
-    thickness: 3 + rng() * 12,
     strands: 2 + Math.floor(rng() * 4),
     turns: 2 + Math.floor(rng() * 5),
     clusterCount: 3 + Math.floor(rng() * 8),
@@ -1797,6 +1788,79 @@ function buildGlyphField(atlas, opts = {}) {
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
   return { points, mat, count, shapeKey };
+}
+
+// ---------------------------------------------------------------------------
+// Neural core: a dense glyph sphere at the world center.
+// ---------------------------------------------------------------------------
+function buildNeuralCore(atlas) {
+  const count = CORE_COUNT;
+  const { cols, rows } = atlas;
+  const cW = 1 / cols;
+  const cH = 1 / rows;
+  const radius = 8;
+
+  const positions = new Float32Array(count * 3);
+  const uvs = new Float32Array(count * 2);
+  const scales = new Float32Array(count);
+  const colors = new Float32Array(count * 3);
+  const phases = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    // Fibonacci sphere distribution
+    const phi = Math.acos(1 - 2 * (i + 0.5) / count);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+    const r = radius * (0.85 + rng() * 0.3);
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.cos(phi);
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+    const gi = Math.floor(rng() * GLYPHS.length);
+    uvs[i * 2] = (gi % cols) * cW;
+    uvs[i * 2 + 1] = Math.floor(gi / cols) * cH;
+
+    scales[i] = 0.6 + rng() * 0.9;
+    phases[i] = rng() * Math.PI * 2;
+
+    const c = palette[Math.floor(rng() * palette.length)];
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aUv', new THREE.BufferAttribute(uvs, 2));
+  geo.setAttribute('aScale', new THREE.BufferAttribute(scales, 1));
+  geo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = makePointsMaterial(atlas, 30);
+  mat.uniforms.uDriftAmp.value = 0.08;
+  mat.uniforms.uDriftSpeed.value = 0.15;
+  mat.uniforms.uTwinkleBase.value = 0.7;
+  mat.uniforms.uTwinkleAmp.value = 0.3;
+  mat.uniforms.uTwinkleSpeed.value = 2.0;
+
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+
+  const lineMat = new THREE.LineBasicMaterial({
+    color: 0x66ffee,
+    transparent: true,
+    opacity: 0.3,
+  });
+  const lineGeo = new THREE.BufferGeometry();
+  const linePos = new Float32Array(count * 3);
+  linePos.set(positions);
+  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+  const lines = new THREE.LineSegments(lineGeo, lineMat);
+
+  const group = new THREE.Group();
+  group.add(points);
+  group.add(lines);
+
+  return { group, points, mat, lineMat, count };
 }
 
 // ---------------------------------------------------------------------------
