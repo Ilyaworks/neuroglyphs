@@ -4,9 +4,8 @@
 
 ## Current Task
 
-**CONCEPT.md written** — full game concept, systems, art direction, and open questions are now
-documented. Next: resolve open questions (esp. #1–#4) and proceed with **T01 — Glyph texture
-atlas** (or re-scope tasks to match the concept's module layout).
+**T01 done** — seeded RNG, glyph alphabet, and canvas texture atlas are in place and verified.
+Next: **T02 — 3D glyph field (instanced, 5k+ glyphs)**.
 
 ## Last Session Summary
 
@@ -33,6 +32,7 @@ atlas** (or re-scope tasks to match the concept's module layout).
 |------------|------|----------------------------------------------------------------|
 | 2026-08-19 | —    | Repo scaffolded: planning docs, knowledge graph, backlog T00–T12 |
 | 2026-08-20 | T00  | Scaffold done: glyph-field demo (index.html + src/main.js, Three.js r160 import map), server.js static server (npm run dev), GitHub repo Ilyaworks/neuroglyphs |
+| 2026-08-20 | T01  | Seeded RNG (mulberry32), glyph alphabet + palette, canvas texture atlas; main.js refactored to import modules; determinism test added (npm test -> DETERMINISM_OK) |
 
 ## Known Risks
 

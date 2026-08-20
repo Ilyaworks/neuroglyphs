@@ -4,71 +4,18 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mulberry32 } from './core/rng.js';
+import { GLYPHS, PALETTE } from './core/glyphs.js';
+import { buildGlyphAtlas } from './core/glyphTexture.js';
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (determinism: same seed -> same field layout)
 // ---------------------------------------------------------------------------
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 const SEED = 0x9e3779b9;
 const rng = mulberry32(SEED);
 
-// ---------------------------------------------------------------------------
-// Glyph alphabet (visual tokens). Mix of latin, greek, math, box, and CJK.
-// ---------------------------------------------------------------------------
-const GLYPH_SET =
-  'abcdehkmnprstuvxyz' +
-  '0123456789' +
-  'αβγδεζηθικλμνξπρστυφχψω' +
-  '∂∆∇∑∏∫√∞≈≠≤≥⊕⊗⊥∴∵' +
-  'λμσφΩΔΣΠ' +
-  'λμσφ' +
-  'アイウエオカキクケコサシスセソ' +
-  '01<>{}[]()=+*/\\|:;#@$%&';
-const GLYPHS = Array.from(new Set(GLYPH_SET.split('')));
-
-// ---------------------------------------------------------------------------
-// Glyph texture atlas: draw each glyph to a canvas, pack into a grid texture.
-// Returns { texture, cols, rows, cell, indexFor }
-// ---------------------------------------------------------------------------
-function buildGlyphAtlas(fontPx = 64, cell = 96) {
-  const cols = 16;
-  const rows = Math.ceil(GLYPHS.length / cols);
-  const canvas = document.createElement('canvas');
-  canvas.width = cols * cell;
-  canvas.height = rows * cell;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = `${fontPx}px "Consolas","SF Mono","Menlo",monospace`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(120,240,255,0.9)';
-  ctx.shadowBlur = 8;
-
-  const indexFor = new Map();
-  for (let i = 0; i < GLYPHS.length; i++) {
-    const cx = (i % cols) * cell + cell / 2;
-    const cy = Math.floor(i / cols) * cell + cell / 2;
-    ctx.fillText(GLYPHS[i], cx, cy);
-    indexFor.set(GLYPHS[i], i);
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.anisotropy = 4;
-  texture.needsUpdate = true;
-  return { texture, cols, rows, cell, indexFor };
-}
+// Palette as THREE.Color objects (hex list lives in core/glyphs.js).
+const palette = PALETTE.map((h) => new THREE.Color(h));
 
 // ---------------------------------------------------------------------------
 // Build a sprite-material per glyph using atlas UVs (one texture atlas, many
@@ -87,14 +34,6 @@ function buildGlyphField(count, radius, atlas) {
   const { cols, rows } = atlas;
   const cW = 1 / cols;
   const cH = 1 / rows;
-
-  const palette = [
-    new THREE.Color(0x58e6d0), // teal accent
-    new THREE.Color(0x9fd0ff), // soft blue
-    new THREE.Color(0x7a86ff), // indigo
-    new THREE.Color(0xd9c8ff), // lavender
-    new THREE.Color(0x334155), // dim slate
-  ];
 
   for (let i = 0; i < count; i++) {
     // Distribute in a shell / volume around the core.

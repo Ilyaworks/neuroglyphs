@@ -6,8 +6,8 @@ Status: `todo` | `next` (currently scheduled) | `in-progress` | `done` | `blocke
 | ID   | Title                                        | Status  | Task File                          | Depends On |
 |------|----------------------------------------------|---------|------------------------------------|------------|
 | T00  | Project scaffold: Vite + Three.js boot loop  | done      | tasks/T00-scaffold.md            | —          |
-| T01  | Seeded RNG + glyph alphabet + canvas textures| next    | tasks/T01-glyph-textures.md        | T00        |
-| T02  | 3D glyph field (instanced, 5k+ glyphs)       | todo    | tasks/T02-glyph-field.md           | T01        |
+| T01  | Seeded RNG + glyph alphabet + canvas textures| done    | tasks/T01-glyph-textures.md        | T00        |
+| T02  | 3D glyph field (instanced, 5k+ glyphs)       | next    | tasks/T02-glyph-field.md           | T01        |
 | T03  | First-person camera + input (WASD, mouse)    | todo    | tasks/T03-camera-input.md          | T00        |
 | T04  | Neural network topology (layers, synapses)   | todo    | tasks/T04-network-topology.md      | T02        |
 | T05  | Synapse signal pulses                        | todo    | tasks/T05-signal-pulses.md         | T04        |
