@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlas</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; }
+  #atlas { display: block; image-rendering: pixelated; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="atlas"></canvas>
+<script type="module">
+  import { buildGlyphAtlas } from "./src/core/atlas.js";
+  const atlas = buildGlyphAtlas();
+  const canvas = document.getElementById("atlas");
+  canvas.width = atlas.canvas.width;
+  canvas.height = atlas.canvas.height;
+  canvas.getContext("2d").drawImage(atlas.canvas, 0, 0);
+</script>
+</body>
+</html>
