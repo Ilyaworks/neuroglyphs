@@ -54,6 +54,14 @@ if (fs.existsSync('src/world/fieldGeometry.js')) {
   console.log('геометрия поля в порядке');
 }
 
+// У N10 проверка была `node --check`: шейдер, который компилируется и рисует пустоту,
+// проходил её молча. Ключевой замер — пиксели спрайта, а не синтаксис.
+if (fs.existsSync('src/world/fieldMaterial.js')) {
+  const r = run('node tools/material-check.mjs');
+  if (!r.ok) refuse('шейдер глифового поля не рисует глифы', r.out);
+  console.log('шейдер поля в порядке');
+}
+
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   const worldReady = fs.existsSync('src/world/world.js');
   const extra = worldReady ? ' --expect-content' : '';

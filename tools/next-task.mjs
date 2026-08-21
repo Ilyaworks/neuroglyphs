@@ -100,6 +100,9 @@ function healthCheck() {
   if (fs.existsSync('src/world/fieldGeometry.js')) {
     checks.push(['геометрия глифового поля', 'node tools/geometry-check.mjs']);
   }
+  if (fs.existsSync('src/world/fieldMaterial.js')) {
+    checks.push(['шейдер глифового поля', 'node tools/material-check.mjs']);
+  }
   if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
     checks.push(['страница в браузере', 'node tools/browser-check.mjs --name health --wait 4']);
   }

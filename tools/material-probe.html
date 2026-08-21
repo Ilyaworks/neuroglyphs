@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>material probe</title>
+<style>html, body { margin: 0; padding: 0; background: #000; } #probe { display: block; }</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<!-- Служебная страница для tools/material-check.mjs. Рисует по одной точке глифового
+     поля настоящим шейдером из src/world/fieldMaterial.js и отдаёт замеры спрайта
+     в window.__probe. Ничего из этого в игру не входит. -->
+<canvas id="probe" width="256" height="256"></canvas>
+<script type="module">
+const SIDE = 256;
+const GLYPHS_UNDER_TEST = [0, 3, 20, 64, 100];
+
+window.__probe = { state: 'старт' };
+
+function measure(px) {
+  let lit = 0, minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  const lum = new Set();
+  for (let y = 0; y < SIDE; y++) {
+    for (let x = 0; x < SIDE; x++) {
+      const i = (y * SIDE + x) * 4;
+      const m = Math.max(px[i], px[i + 1], px[i + 2]);
+      if (m > 16) {
+        lit++;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        lum.add(m >> 2);
+      }
+    }
+  }
+  if (!lit) return { lit: 0, boxW: 0, boxH: 0, fill: 0, shades: 0 };
+  const boxW = maxX - minX + 1;
+  const boxH = maxY - minY + 1;
+  return { lit, boxW, boxH, fill: lit / (boxW * boxH), shades: lum.size };
+}
+
+try {
+  const [{ default: _ }, THREE, atlasMod, matMod] = await Promise.all([
+    Promise.resolve({ default: null }),
+    import('three'),
+    import('/src/core/atlas.js'),
+    import(new URLSearchParams(location.search).get('mod') || '/src/world/fieldMaterial.js'),
+  ]);
+
+  const canvas = document.getElementById('probe');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
+  renderer.setPixelRatio(1);
+  renderer.setSize(SIDE, SIDE, false);
+  renderer.setClearColor(0x000000, 1);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 5000);
+  camera.position.set(0, 0, 0);
+
+  const atlas = atlasMod.buildGlyphAtlas();
+  const built = matMod.buildFieldMaterial(atlas, {});
+  const material = built.material || built;
+  const uniforms = built.uniforms || material.uniforms || {};
+
+  const geom = new THREE.BufferGeometry();
+  const glyphAttr = new Float32Array([0]);
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, -30]), 3));
+  geom.setAttribute('glyph', new THREE.BufferAttribute(glyphAttr, 1));
+  geom.setAttribute('size', new THREE.BufferAttribute(new Float32Array([10]), 1));
+  geom.setAttribute('offset', new THREE.BufferAttribute(new Float32Array([0.1]), 1));
+  geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, -30), 100);
+
+  const points = new THREE.Points(geom, material);
+  points.frustumCulled = false;
+  scene.add(points);
+
+  const gl = renderer.getContext();
+  const px = new Uint8Array(SIDE * SIDE * 4);
+  const perGlyph = [];
+
+  for (const g of GLYPHS_UNDER_TEST) {
+    glyphAttr[0] = g;
+    geom.attributes.glyph.needsUpdate = true;
+    renderer.clear();
+    renderer.render(scene, camera);
+    gl.readPixels(0, 0, SIDE, SIDE, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    perGlyph.push(Object.assign({ glyph: g }, measure(px)));
+  }
+
+  window.__probe = {
+    state: 'готово',
+    uniformNames: Object.keys(uniforms),
+    blending: material.blending,
+    additive: material.blending === THREE.AdditiveBlending,
+    depthWrite: material.depthWrite,
+    depthTest: material.depthTest,
+    transparent: material.transparent,
+    usesPointCoord: /gl_PointCoord/.test(material.fragmentShader || ''),
+    hasClamp: /gl_PointSize\s*=\s*min\s*\(/.test(material.vertexShader || ''),
+    programs: renderer.info.programs ? renderer.info.programs.length : -1,
+    perGlyph,
+  };
+} catch (e) {
+  window.__probe = { state: 'исключение', error: String((e && e.message) || e) };
+}
+</script>
+</body>
+</html>
