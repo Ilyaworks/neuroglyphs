@@ -17,12 +17,16 @@ line('незакоммичено', dirty ? dirty.split('\n').length + ' файл
 line('ветка', sh('git branch --show-current'));
 
 console.log('\n--- формы ---');
+const all = await import('../src/world/allShapes.js');
 const cat = await import('../src/world/shapeCatalog.js');
+const legacy = await import('../src/world/legacyShapes.js');
 const field = await import('../src/world/fieldShapes.js');
-line('в каталоге', cat.SHAPE_KEYS.length);
-line('в мире (плотные)', field.FIELD_SHAPE_KEYS.length);
-line('отсеяно как разряженные', cat.SHAPE_KEYS.length - field.FIELD_SHAPE_KEYS.length);
-line('проверка форм', sh('node tools/shape-check.mjs > NUL 2>&1 && echo зелёная || echo ЕСТЬ ОТКАЗЫ'));
+line('всего форм', all.ALL_SHAPE_KEYS.length);
+line('  из них старых', Object.keys(legacy.LEGACY_SHAPES).length);
+line('  из них новых', cat.SHAPE_KEYS.length);
+line('в мире после отбора', field.FIELD_SHAPE_KEYS.length);
+line('отсеяно', all.ALL_SHAPE_KEYS.length - field.FIELD_SHAPE_KEYS.length + ' (нити, оболочки, дубли)');
+line('проверка нового каталога', sh('node tools/shape-check.mjs > NUL 2>&1 && echo зелёная || echo ЕСТЬ ОТКАЗЫ'));
 
 console.log('\n--- задачи T03 (генератор мира) ---');
 for (const f of ['src/world/structures.js', 'src/world/generator.js', 'test/world.test.mjs']) {

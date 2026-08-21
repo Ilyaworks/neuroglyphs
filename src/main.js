@@ -10,7 +10,7 @@ import { mulberry32 } from './core/rng.js';
 import { GLYPHS, PALETTE } from './core/glyphs.js';
 import { buildGlyphAtlas } from './core/glyphTexture.js';
 import { decodeSeed, validateSeed } from './core/seed.js';
-import { SHAPES as CATALOG_SHAPES } from './world/shapeCatalog.js';
+import { ALL_SHAPES, setRng as setShapeRng } from './world/allShapes.js';
 import { FIELD_SHAPE_KEYS } from './world/fieldShapes.js';
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,7 @@ const params = new URLSearchParams(window.location.search);
 const seedString = validateSeed(params.get('seed')) ? params.get('seed') : DEFAULT_SEED;
 const seed = decodeSeed(seedString);
 const rng = seed.rng;
+setShapeRng(rng); // старые формы берут случайность из общего сеяного генератора
 const SEED = seedString;
 
 const palette = PALETTE.map((h) => new THREE.Color(h));
@@ -103,7 +104,8 @@ const FIELD_COUNT = 600000;
 
 // Shape archetypes: each is a function (i, params, out) that writes x,y,z.
 // params are seeded-random values that vary the shape within its archetype.
-// Каталог форм вынесен в src/world/shapeCatalog.js (+ подмены в shapePatch.js).
+// Формы: старый набор (legacyShapes.js) + новый каталог (shapeCatalog.js + shapePatch.js),
+// объединены в allShapes.js.
 // В мир попадают только достаточно плотные формы — список в src/world/fieldShapes.js.
 
 function pickShapeParams(key) {
@@ -143,7 +145,7 @@ function buildGlyphField(atlas, opts = {}) {
 
   // Seed-driven shape selection
   const shapeKey = FIELD_SHAPE_KEYS[Math.floor(rng() * FIELD_SHAPE_KEYS.length)];
-  const shapeFn = CATALOG_SHAPES[shapeKey];
+  const shapeFn = ALL_SHAPES[shapeKey];
   const shapeParams = pickShapeParams(shapeKey);
 
   const positions = new Float32Array(count * 3);
