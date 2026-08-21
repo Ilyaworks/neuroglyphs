@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createWorld } from "./world/world.js";
 
 const canvas = document.getElementById("scene");
 
@@ -12,6 +13,21 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 export const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x555555, 0.0011);
+scene.background = new THREE.Color(0x0a0a0a);
+
+const frameFns = [];
+
+export function onFrame(fn) {
+  frameFns.push(fn);
+}
+
+const world = createWorld();
+scene.add(world.group);
+onFrame((dt) => {
+  world.uniforms.uTime.value += dt;
+  world.uniforms.uPulse.value = 0.5 + 0.5 * Math.sin(world.uniforms.uTime.value * 2.0);
+});
 
 export const camera = new THREE.PerspectiveCamera(
   70,
@@ -19,12 +35,6 @@ export const camera = new THREE.PerspectiveCamera(
   0.1,
   5000,
 );
-
-const frameFns = [];
-
-export function onFrame(fn) {
-  frameFns.push(fn);
-}
 
 function resize() {
   const width = window.innerWidth;
