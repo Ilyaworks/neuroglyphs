@@ -1,6 +1,6 @@
 # T03 — World Generator v1
 
-**Status:** todo
+**Status:** done
 **Depends on:** T02
 **Files to create/modify:**
 - `src/world/generator.js` (new)
@@ -79,12 +79,12 @@ All positions, rotations, scales, colors derived from the seed's rng ONLY.
 
 ## Acceptance Criteria
 
-- [ ] `npm test` passes (world determinism).
-- [ ] `?seed=abc123` produces a visually distinct world from `?seed=xyz789`.
-- [ ] Exit portal always present and rectangular.
-- [ ] 3+ structure types visually distinct (fractal, crystalline, void).
-- [ ] No `Math.random()` in world generation.
-- [ ] World renders at ≥ 30fps with 5k+ glyph sprites.
+- [x] `npm test` passes (world determinism).
+- [x] `?seed=abc123` produces a visually distinct world from `?seed=xyz789`.
+- [x] Exit portal always present and rectangular.
+- [x] 3+ structure types visually distinct (fractal, crystalline, void).
+- [x] No `Math.random()` in world generation.
+- [x] World renders at ≥ 30fps with 5k+ glyph sprites.
 
 ## Invariants
 
