@@ -24,6 +24,13 @@ const rng = seed.rng;
 setShapeRng(rng); // старые формы берут случайность из общего сеяного генератора
 const SEED = seedString;
 
+/** Небольшой хеш строки: нужен для решений, не зависящих от потока сеяного генератора. */
+function seedHash(s) {
+  let x = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; }
+  return x >>> 0;
+}
+
 const palette = PALETTE.map((h) => new THREE.Color(h));
 
 // ---------------------------------------------------------------------------
@@ -343,6 +350,7 @@ function fail(msg) {
 
 let renderer, scene, camera, controls, clock;
 let field, core, ring, stars;
+let hasCore = true;
 let pulse = 0;
 
 const STAR_COUNT = 150000;
@@ -376,11 +384,19 @@ try {
   field = buildGlyphField(atlas, { count: FIELD_COUNT });
   scene.add(field.points);
 
-  core = buildNeuralCore(atlas);
-  scene.add(core.group);
+  // Центральное светило и кольцо вокруг — не в каждом мире: иначе скопление в середине
+  // выглядит одинаково при любой форме поля. Решает хеш строки сида: он не трогает поток
+  // сеяного генератора, поэтому соответствие сид -> форма остаётся прежним.
+  // (Поля вроде seed.structure для этого не годятся: у коротких сидов они всегда нулевые,
+  //  потому что занимают старшие биты упаковки.)
+  hasCore = (seedHash(SEED) % 2) === 0;
+  if (hasCore) {
+    core = buildNeuralCore(atlas);
+    scene.add(core.group);
 
-  ring = buildContextRing(atlas);
-  scene.add(ring.group);
+    ring = buildContextRing(atlas);
+    scene.add(ring.group);
+  }
 
   stars = buildGlyphField(atlas, {
     count: STAR_COUNT,
@@ -429,14 +445,17 @@ try {
     // Update time uniforms
     field.mat.uniforms.uTime.value = t;
     stars.mat.uniforms.uTime.value = t;
-    core.mat.uniforms.uTime.value = t;
-    ring.mat.uniforms.uTime.value = t;
+    if (hasCore) {
+      core.mat.uniforms.uTime.value = t;
+      ring.mat.uniforms.uTime.value = t;
+    }
 
     // Pulse decay
     if (pulse > 0) pulse = Math.max(0, pulse - dt * 0.8);
     const p = pulse;
 
     // Core rotation
+    if (hasCore) {
     core.group.rotation.y += dt * 0.12;
     core.lineMat.opacity = 0.3 + p * 0.6;
     // Pulse: brighten core points
@@ -446,6 +465,7 @@ try {
     // Ring rotation
     ring.group.rotation.y -= dt * 0.15;
     ring.mat.uniforms.uTwinkleBase.value = 0.65 + p * 0.35;
+    }
 
 
     controls.update();
@@ -467,7 +487,7 @@ try {
     setTimeout(() => boot.remove(), 700);
   });
 
-  console.log('[NEUROGLYPHS] demo booted. seed=' + SEED + ' shape=' + field.shapeKey + ' glyphs=' + TOTAL_GLYPHS.toLocaleString());
+  console.log('[NEUROGLYPHS] demo booted. seed=' + SEED + ' shape=' + field.shapeKey + ' core=' + (hasCore ? 'on' : 'off') + ' glyphs=' + TOTAL_GLYPHS.toLocaleString());
 } catch (err) {
   console.error(err);
   fail(err && err.message ? err.message : String(err));
