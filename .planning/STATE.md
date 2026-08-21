@@ -6,7 +6,7 @@
 
 **Concept v2 adopted (2026-08-20).** Old token/inference concept deprecated.
 T00 + T01 + T02 done (scaffold + seeded RNG/glyph textures + seed engine).
-Next: **T03 — World generator v1 (structures + particles)**.
+Next: **T03 — World generator v1 (structures + particles)**. Файлы T03 (`src/world/structures.js`, `generator.js`, `test/world.test.mjs`) ещё не созданы; готовые промты — `.planning/prompts-T03.md`.
 
 ## Last Session Summary
 
@@ -52,6 +52,18 @@ Next: **T03 — World generator v1 (structures + particles)**.
   `src/systems/`, `src/ui/`, `src/data/` and to Vite. `project-graph.xml` statuses corrected
   (m-seed and T02 are done, T03 is next). Remaining v1 leftover lives in code:
   `buildContextRing` in `src/main.js`, to be removed in T03.
+
+- 2026-08-21: **Концепция v1 удалена из кода, каталог форм подключён к сцене.**
+  `main.js` сжался с 2072 до 472 строк: инлайновый список из 169 форм (88 из них — вариации
+  тора) заменён импортом из `src/world/shapeCatalog.js`. В мир попадают только достаточно
+  плотные формы — список в `src/world/fieldShapes.js` (33 из 44, порог заполненности 0.15,
+  пересборка `node tools/pick-dense-shapes.mjs`). Убрана механика токенов: счётчики TOKENS и
+  CONTEXT в HUD, полоса заполнения, накопление в цикле; пробел остался как визуальный пульс.
+  В HUD теперь показываются сид и имя формы. Ядро и вращающееся кольцо сохранены намеренно —
+  это художественный элемент, который нравится заказчику.
+  Инструменты: `tools/shape-check.mjs` (проверка формы на объём и оболочку),
+  `tools/pick-dense-shapes.mjs`, `tools/gen-seeds-gallery.mjs`, `tools/project-status.mjs`
+  (сводка состояния — запускать в начале каждой сессии).
 
 ## Known Risks
 

@@ -1,6 +1,9 @@
 # Rules for agents working in this repo with a small local model (Qwen via Cline)
 
 ## Read order at session start
+0. **Сначала выполни `node tools/project-status.mjs`** — это факты с диска: коммит,
+   сколько форм в каталоге и в мире, подключён ли каталог, какие файлы T03 существуют,
+   статусы бэклога. Документы могут отставать, вывод этой команды — нет.
 1. `.planning/STATE.md` — current task and what is actually done. Read first, update last.
 2. The task file it points to, under `.planning/tasks/`.
 3. `.planning/CONCEPT.md` — the design source of truth. Read only what your task needs.
@@ -16,6 +19,9 @@ Ready-to-paste prompts for the current task live in `.planning/prompts-T03.md`.
 - On Windows use `cd /d` when changing drives, or pass absolute paths instead of relying on cd.
 - **One task per session.** Finish one `T##`, update bookkeeping, commit, then STOP.
   Do not start the next task in the same session.
+- **В конце сессии обнови `.planning/STATE.md`**: строку текущей задачи и запись в журнал
+  сессий (что сделано, чем проверено, что осталось). Без этого следующая сессия начнёт с
+  неверной картины — так уже терялось время.
 - End-of-session bookkeeping, in this order: task file status → `.planning/BACKLOG.md`
   → `.planning/STATE.md` (append a session-log row) → knowledge-graph files if behavior changed.
 - Commit message format: `T##: <imperative summary>`.
