@@ -97,6 +97,9 @@ function healthCheck() {
   const pkg = fs.existsSync('package.json') ? JSON.parse(fs.readFileSync('package.json', 'utf8')) : {};
   const checks = [];
   if (pkg.scripts && pkg.scripts.test) checks.push(['npm test', 'npm test']);
+  if (fs.existsSync('src/world/fieldGeometry.js')) {
+    checks.push(['геометрия глифового поля', 'node tools/geometry-check.mjs']);
+  }
   if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
     checks.push(['страница в браузере', 'node tools/browser-check.mjs --name health --wait 4']);
   }
@@ -120,8 +123,6 @@ function healthCheck() {
   }
 }
 
-if (!skipChecks) healthCheck();
-
 const want = process.argv.find(a => /^[NnRr]\d+$/.test(a));
 const pendingFix = tasks.find(t => t.fix && !done(t));
 const task = want
@@ -132,6 +133,11 @@ if (!task) {
   console.log(want ? 'задача ' + want + ' не найдена' : 'все задачи закрыты');
   process.exit(0);
 }
+
+// Предстартовая проверка после выбора задачи: если выдана правка по ревью, проект
+// сломан осознанно и именно она это и лечит — иначе модель не закроет ни одной задачи
+// и полезет править чужие файлы, чтобы пройти воротa на выходе.
+if (!skipChecks && !task.fix) healthCheck();
 
 const skipped = tasks.filter(t => t.epic && done(t)).length;
 const total = tasks.filter(t => t.epic).length;
