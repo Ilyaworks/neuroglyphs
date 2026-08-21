@@ -48,7 +48,10 @@ function measure(fn) {
   const bins = new Array(20).fill(0);
   for (const r of rs) bins[Math.min(19, Math.floor(r / rmax * 20))]++;
   const share = bins.map(v => v / pts.length);
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const gapAvg = avg(share.slice(5, 12)) || 1e-9;
   return {
+    gap: Math.min(avg(share.slice(0, 5)) / gapAvg, avg(share.slice(12)) / gapAvg),
     occ: cells.size / (G * G * G),
     core: share.slice(0, 5).reduce((a, b) => a + b, 0),
     ring: share.slice(12).reduce((a, b) => a + b, 0),
@@ -71,14 +74,16 @@ for (const k of SHAPE_KEYS) {
 }
 
 rows.sort((a, b) => a.occ - b.occ);
-console.log('форма'.padEnd(20) + 'заполн  центр  кольцо  пик');
+console.log('форма'.padEnd(20) + 'заполн  центр  кольцо  пик    провал');
 for (const r of rows) {
-  console.log(r.k.padEnd(20) + [r.occ, r.core, r.ring, r.peak].map(f).join('  ') + (r.why.length ? '   <-- ' + r.why.join(', ') : r.note ? '   (' + r.note + ')' : ''));
+  console.log(r.k.padEnd(20) + [r.occ, r.core, r.ring, r.peak].map(f).join('  ') + '  ' + r.gap.toFixed(2) + 'x' + (r.why.length ? '   <-- ' + r.why.join(', ') : r.note ? '   (' + r.note + ')' : ''));
 }
 const coreRing = rows.filter(r => r.core >= 0.15 && r.ring >= 0.25 && r.occ >= 0.15);
+const trueStars = rows.filter(r => r.core >= 0.15 && r.ring >= 0.25 && r.occ >= 0.15 && r.gap >= 1.3);
 console.log('');
 console.log('форм всего              : ' + SHAPE_KEYS.length);
 console.log('отказ при: заполн<' + LIMITS.occ + ' или пик>' + LIMITS.peak + ' (центр<' + LIMITS.core + ' — только пометка)');
+console.log('светило с провалом >=1.3: ' + (trueStars.length ? trueStars.map(r => r.k).join(' ') : 'ни одной'));
 console.log('семейство ядро+кольцо   : ' + (coreRing.length ? coreRing.map(r => r.k).join(' ') : 'ни одной'));
 console.log('не проходят проверку    : ' + failed.length);
 for (const s of failed) console.log('   ' + s);
