@@ -2,6 +2,8 @@
 // 32 формы, 8 семейств по 4. Чистые функции от (i, p, out), без импортов и Math.random().
 
 // Локальный хеш для детерминированного разброса: h(n) -> [0, 1)
+import { PATCH } from './shapePatch.js';
+
 function h(n) {
   let x = (n ^ 0x9e3779b9) >>> 0;
   x = Math.imul(x ^ (x >>> 15), 0x85ebca6b) >>> 0;
@@ -436,7 +438,7 @@ const layeredPlates = (i, p, out) => {
 
 // ---- каталог ----
 
-export const SHAPES = {
+const BASE_SHAPES = {
   // фракталы и хаос
   mandelShell,
   juliaCloud,
@@ -568,7 +570,7 @@ const centerBraid = (i, p, out) => {
 };
 
 // Add legacy forms to catalog
-Object.assign(SHAPES, {
+Object.assign(BASE_SHAPES, {
   centerTorus,
   centerSpiral,
   centerOrb,
@@ -579,4 +581,6 @@ Object.assign(SHAPES, {
   centerBraid,
 });
 
+// Формы из shapePatch.js подменяют одноимённые базовые и добавляют новые.
+export const SHAPES = { ...BASE_SHAPES, ...PATCH };
 export const SHAPE_KEYS = Object.keys(SHAPES);
