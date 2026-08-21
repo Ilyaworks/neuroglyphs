@@ -40,6 +40,12 @@ if (pkg.scripts && pkg.scripts.test) {
   console.log('тесты прошли');
 }
 
+if (fs.existsSync('atlas.html') && fs.existsSync('src/core/atlas.js')) {
+  const r = run('node tools/atlas-check.mjs');
+  if (!r.ok) refuse('атлас собран неверно', r.out);
+  console.log('атлас в порядке');
+}
+
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   const worldReady = fs.existsSync('src/world/world.js');
   const extra = worldReady ? ' --expect-content' : '';
