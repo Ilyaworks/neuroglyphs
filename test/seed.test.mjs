@@ -142,4 +142,75 @@ function randomFields(rng) {
   }
 }
 
+// 8. Эталонные значения первого броска rng для фиксированных кодов
+{
+  const expected = [
+    ["0000-0000-0000", 0.266429208685],
+    ["0000-0000-0001", 0.627073940588],
+    ["0000-8cng-bh0b", 0.747586897574],
+    ["0000-e13w-u1of", 0.150683382992],
+  ];
+  for (const [code, want] of expected) {
+    const d = decodeSeed(code);
+    if (d === null) fail("test 8: decodeSeed returned null for " + code);
+    const got = d.rng();
+    if (Math.abs(got - want) > 1e-12) {
+      fail("test 8: rng first throw for " + code + " is " + got + " expected " + want);
+    }
+  }
+}
+
+// 9. Контракт SEED_FIELDS: имена, разрядность и порядок совпадают с таблицей N07, сумма 40 бит
+{
+  const expectedFields = [
+    ["structure", 3],
+    ["palette", 3],
+    ["mood", 3],
+    ["density", 4],
+    ["fractal", 3],
+    ["motion", 3],
+    ["nonEuclid", 3],
+    ["music", 4],
+    ["shape", 6],
+    ["exit", 8],
+  ];
+  if (SEED_FIELDS.length !== expectedFields.length) {
+    fail("test 9: SEED_FIELDS has " + SEED_FIELDS.length + " fields expected " + expectedFields.length);
+  }
+  let total = 0;
+  for (let i = 0; i < expectedFields.length; i++) {
+    const [name, bits] = expectedFields[i];
+    const field = SEED_FIELDS[i];
+    if (field.name !== name) fail("test 9: field " + i + " name is " + field.name + " expected " + name);
+    if (field.bits !== bits) fail("test 9: field " + name + " bits is " + field.bits + " expected " + bits);
+    total += field.bits;
+  }
+  if (total !== 40) fail("test 9: total bits is " + total + " expected 40");
+}
+
+// 10. encodeSeed возвращает null на плохих полях
+{
+  const good = {
+    structure: 0,
+    palette: 0,
+    mood: 0,
+    density: 0,
+    fractal: 0,
+    motion: 0,
+    nonEuclid: 0,
+    music: 0,
+    shape: 0,
+    exit: 0,
+  };
+  const bad = [
+    [{ ...good, structure: 8 }, "structure out of range"],
+    [{ ...good, structure: 1.5 }, "structure not integer"],
+    [{ ...good, structure: -1 }, "structure negative"],
+    [{ palette: 0, mood: 0, density: 0, fractal: 0, motion: 0, nonEuclid: 0, music: 0, shape: 0, exit: 0 }, "missing structure"],
+  ];
+  for (const [f, label] of bad) {
+    if (encodeSeed(f) !== null) fail("test 10: encodeSeed should be null for " + label);
+  }
+}
+
 console.log("SEED_OK");
