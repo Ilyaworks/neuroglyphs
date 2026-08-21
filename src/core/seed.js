@@ -58,7 +58,7 @@ export function decodeSeed(code) {
     packed = packed * 36n + BigInt(c);
   }
   if (packed >= 1n << 40n) return null;
-  const fields = { rng: mulberry32(Number(packed % 4294967296n)) };
+  const fields = { rng: mulberry32(Number(packed & 0xffffffffn) ^ Number(packed >> 32n)) };
   let shift = 0n;
   for (const f of SEED_FIELDS) {
     fields[f.name] = Number((packed >> shift) & ((1n << BigInt(f.bits)) - 1n));
