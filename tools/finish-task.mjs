@@ -41,7 +41,9 @@ if (pkg.scripts && pkg.scripts.test) {
 }
 
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
-  const r = run('node tools/browser-check.mjs --name ' + id.toLowerCase() + ' --wait 5');
+  const worldReady = fs.existsSync('src/world/world.js');
+  const extra = worldReady ? ' --expect-content' : '';
+  const r = run('node tools/browser-check.mjs --name ' + id.toLowerCase() + ' --wait 5' + extra);
   if (!r.ok) refuse('страница открывается с ошибками', r.out);
   console.log('страница чистая, скриншот: .planning/shots/' + id.toLowerCase() + '.png');
 }

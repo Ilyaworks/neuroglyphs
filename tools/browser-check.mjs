@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { frameStats } from './frame-stats.mjs';
 
 const arg = (name, def) => {
   const i = process.argv.indexOf('--' + name);
@@ -19,6 +20,8 @@ const arg = (name, def) => {
 const PORT = 5173;
 const CDP_PORT = 9333;
 const urlPath = arg('url', '/');
+const expectContent = process.argv.includes('--expect-content');
+const expectMotion = process.argv.includes('--expect-motion');
 const waitSec = Number(arg('wait', 4));
 const shotName = arg('name', 'page');
 
@@ -124,8 +127,49 @@ try {
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   fs.mkdirSync('.planning/shots', { recursive: true });
   const file = '.planning/shots/' + shotName + '.png';
-  fs.writeFileSync(file, Buffer.from(shot.data, 'base64'));
+  const png = Buffer.from(shot.data, 'base64');
+  fs.writeFileSync(file, png);
   console.log('скриншот: ' + file);
+
+  let stats = null;
+  try {
+    stats = frameStats(png);
+    console.log('кадр: светится ' + (stats.litShare * 100).toFixed(2) + '% пикселей, ' +
+      'средняя яркость ' + stats.meanLum.toFixed(1) + ', максимум ' + stats.maxLum +
+      ', оттенков ' + stats.colors);
+  } catch (e) {
+    console.log('кадр разобрать не удалось: ' + e.message);
+  }
+
+  const fps = await send('Runtime.evaluate', {
+    expression: 'new Promise(r => { let n = 0; const t0 = performance.now();' +
+      ' const step = () => { n++; if (performance.now() - t0 < 1200) requestAnimationFrame(step);' +
+      ' else r(Math.round(n / ((performance.now() - t0) / 1000))); }; requestAnimationFrame(step); })',
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  if (typeof fps.result?.value === 'number') console.log('кадров в секунду: ' + fps.result.value);
+
+  if (expectContent && stats) {
+    if (stats.litShare < 0.005 || stats.maxLum < 40) {
+      problems.push('кадр практически пустой: светится ' + (stats.litShare * 100).toFixed(2) +
+        '% пикселей при максимальной яркости ' + stats.maxLum + '. Мир не отрисовался.');
+    }
+  }
+
+  if (expectMotion) {
+    await sleep(1400);
+    const second = await send('Page.captureScreenshot', { format: 'png' });
+    if (second.data === shot.data) {
+      problems.push('два кадра с разницей 1.4 секунды побайтово одинаковы: сцена статична');
+    } else {
+      try {
+        const s2 = frameStats(Buffer.from(second.data, 'base64'));
+        const drift = Math.abs(s2.meanLum - stats.meanLum) + Math.abs(s2.litShare - stats.litShare) * 100;
+        console.log('движение между кадрами: ' + drift.toFixed(3));
+      } catch {}
+    }
+  }
 
   const banner = await send('Runtime.evaluate', {
     expression: 'document.body ? (document.body.innerText || "").slice(0, 300) : "нет body"',
