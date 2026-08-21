@@ -5,7 +5,7 @@
 > CDN import map in `index.html`, served by `server.js` (`npm run dev`). There is no
 > Vite, no bundler and no dependencies. Read the stack from `AGENTS.md`, not from here.
 
-**Status:** in-progress
+**Status:** todo
 **Depends on:** —
 **Goal:** A runnable Vite + Three.js project that renders a rotating wireframe cube with an FPS counter, proving the toolchain works end-to-end.
 

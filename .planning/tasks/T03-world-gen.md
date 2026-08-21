@@ -1,6 +1,6 @@
 # T03 — World Generator v1
 
-**Status:** done
+**Status:** todo
 **Depends on:** T02
 **Files to create/modify:**
 - `src/world/generator.js` (new)

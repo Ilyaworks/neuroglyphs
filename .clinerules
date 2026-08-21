@@ -40,8 +40,9 @@ worlds are collectible (100 curated + infinite random + share by code); one exit
 **Concept v1 is dead.** If you find text about collecting tokens into a bounded context
 window, inference events, synapses, neural-network layers, or the folders `src/systems/`,
 `src/ui/`, `src/data/` — that is stale wording, not a requirement. Delete it instead of
-implementing it. The last code leftover is `buildContextRing` in `src/main.js`, scheduled
-for removal in T03.
+implementing it. The last code leftover (`buildContextRing` in `src/main.js`) was renamed
+to `buildOrbitRing` on 2026-08-21; the dead CSS rules `#context-bar`/`#context-fill`
+were removed from `index.html` in the same session.
 
 ## Invariants
 - INV-1: no `Math.random()` in world generation — seeded PRNG only (`src/core/rng.js`).

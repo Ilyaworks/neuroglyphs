@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="neuroglyphs" version="2.0" updated="2026-08-20">
+<project name="neuroglyphs" version="3.0" updated="2026-08-21">
   <description>
     NEUROGLYPHS v2 — endless generative kaleidoscope explorer.
     3D worlds made entirely of glyphs, formulas, and light.
     Seed = world. Music = heartbeat. No goal, no death.
+    Full code reset 2026-08-21: all modules restart from scratch.
   </description>
 
   <invariants>
@@ -18,22 +19,22 @@
   </invariants>
 
   <modules>
-    <module id="m-scaffold" file="index.html + src/main.js + server.js" status="done">
+    <module id="m-scaffold" file="index.html + src/main.js + server.js" status="todo">
       <desc>Three.js r160 boot loop, import map, static server, render loop.</desc>
     </module>
-    <module id="m-rng" file="src/core/rng.js" status="done">
+    <module id="m-rng" file="src/core/rng.js" status="todo">
       <desc>mulberry32 seeded PRNG, string→uint32 hash.</desc>
     </module>
-    <module id="m-glyphs" file="src/core/glyphs.js" status="done">
+    <module id="m-glyphs" file="src/core/glyphs.js" status="todo">
       <desc>Glyph alphabet (symbols, formulas, CJK), palette, per-mood sets.</desc>
     </module>
-    <module id="m-glyphtex" file="src/core/glyphTexture.js" status="done">
+    <module id="m-glyphtex" file="src/core/glyphTexture.js" status="todo">
       <desc>Canvas texture atlas from glyph set + palette.</desc>
     </module>
-    <module id="m-seed" file="src/core/seed.js" status="done">
+    <module id="m-seed" file="src/core/seed.js" status="todo">
       <desc>Seed encode/decode (base36 string), world params extraction.</desc>
     </module>
-    <module id="m-worldgen" file="src/world/generator.js + src/world/structures.js" status="done">
+    <module id="m-worldgen" file="src/world/generator.js + src/world/structures.js" status="todo">
       <desc>Seeded world generation: 8 structure layouts, particles, fog, exit portal. worldParams() is the single pure source of seed-driven decisions.</desc>
     </module>
     <module id="m-music" file="src/audio/musicEngine.js" status="todo">
@@ -86,10 +87,10 @@
   </dependencies>
 
   <tasks>
-    <task id="T00" module="m-scaffold" status="done" file=".planning/tasks/T00-scaffold.md"/>
-    <task id="T01" module="m-rng,m-glyphs,m-glyphtex" status="done" file=".planning/tasks/T01-glyph-textures.md"/>
-    <task id="T02" module="m-seed" status="done" file=".planning/tasks/T02-seed-engine.md"/>
-    <task id="T03" module="m-worldgen" status="done" file=".planning/tasks/T03-world-gen.md"/>
+    <task id="T00" module="m-scaffold" status="todo" file=".planning/tasks/T00-scaffold.md"/>
+    <task id="T01" module="m-rng,m-glyphs,m-glyphtex" status="todo" file=".planning/tasks/T01-glyph-textures.md"/>
+    <task id="T02" module="m-seed" status="todo" file=".planning/tasks/T02-seed-engine.md"/>
+    <task id="T03" module="m-worldgen" status="todo" file=".planning/tasks/T03-world-gen.md"/>
     <task id="T04" module="m-music" status="todo" file=".planning/tasks/T04-music-engine.md"/>
     <task id="T05" module="m-reactor" status="todo" file=".planning/tasks/T05-visual-reactor.md"/>
     <task id="T06" module="m-movement" status="todo" file=".planning/tasks/T06-movement.md"/>
@@ -99,5 +100,7 @@
     <task id="T10" module="m-neuro" status="todo" file=".planning/tasks/T10-neuro-prompt.md"/>
     <task id="T11" module="m-seeds" status="todo" file=".planning/tasks/T11-seeds-sharing.md"/>
     <task id="T12" module="m-polish" status="todo" file=".planning/tasks/T12-polish.md"/>
+    <task id="T13" module="m-worldgen" status="todo" file=".planning/tasks/T13-shapes-v2.md"/>
+    <task id="T14" module="m-worldgen" status="todo" file=".planning/tasks/T14-shapes-v3.md"/>
   </tasks>
 </project>

@@ -60,22 +60,22 @@
   </session-protocol>
 
   <file-map>
-    <module path="src/core/" description="Seeded randomness, seed codec, glyph material" status="done">
+    <module path="src/core/" description="Seeded randomness, seed codec, glyph material" status="todo">
       <file path="src/core/rng.js" role="mulberry32 seeded PRNG plus string-to-uint32 hash"/>
       <file path="src/core/seed.js" role="Seed codec: 8 world fields bit-packed into a base36 code. encodeSeed, decodeSeed, randomSeed, validateSeed, FIELDS, GROUP_MAX"/>
       <file path="src/core/glyphs.js" role="Glyph alphabet (GLYPHS) and colour palette (PALETTE)"/>
       <file path="src/core/glyphTexture.js" role="buildGlyphAtlas: canvas texture atlas from the glyph set"/>
     </module>
-    <module path="src/world/" description="World generation from a decoded seed" status="in-progress-T03">
+    <module path="src/world/" description="World generation from a decoded seed" status="todo">
       <file path="src/world/structures.js" role="Pure layout functions per structure type, returning typed arrays, no Three.js"/>
       <file path="src/world/generator.js" role="generateWorld, disposeWorld, getExitPosition: structure plus particles plus fog plus exit portal"/>
     </module>
-    <module path="root" description="Entry point and dev server" status="done">
+    <module path="root" description="Entry point and dev server" status="todo">
       <file path="index.html" role="Import map for Three.js r160, canvas host, DOM HUD"/>
       <file path="src/main.js" role="Boot: read the seed URL param, build the world, camera, controls, render loop"/>
       <file path="server.js" role="Static file server for npm run dev"/>
     </module>
-    <module path="test/" description="Plain node tests, no framework" status="done">
+    <module path="test/" description="Plain node tests, no framework" status="todo">
       <file path="test/determinism.test.mjs" role="Prints DETERMINISM_OK"/>
       <file path="test/seed.test.mjs" role="Seed round-trip on 200 random parameter sets, prints SEED_OK"/>
     </module>
@@ -104,5 +104,6 @@
   <notes>
     <note>Node cannot import three because the import map is browser-only. Keep pure math in exported functions and test those.</note>
     <note>No bundler and no dependencies: npm run build is a deliberate no-op.</note>
+    <note>Full code reset 2026-08-21: all source files deleted, all tasks restart from T00.</note>
   </notes>
 </agent-prime>

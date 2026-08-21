@@ -1,6 +1,6 @@
 # T01 - Seeded RNG + glyph alphabet + canvas textures
 
-**Status:** done
+**Status:** todo
 **Depends on:** T00
 **Goal:** A deterministic glyph alphabet rendered to canvas textures, ready for instancing.
 

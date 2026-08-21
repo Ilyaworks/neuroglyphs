@@ -1,6 +1,6 @@
 # T02 — Seed Engine
 
-**Status:** done (2026-08-20)
+**Status:** todo
 **Depends on:** T01
 **Files to create/modify:**
 - `src/core/seed.js` (new)
