@@ -36,6 +36,18 @@ const epicOf = (() => {
 say('=== СООБЩЕНИЕ КЛОДУ от рабочей сессии neuroglyphs ===');
 say('');
 say('прогресс: ' + doneRows.length + ' из ' + rows.length + ' задач');
+
+// Правки по ревью идут вперёд задач N. Если они висят, проверяющий должен увидеть
+// это первой строкой отчёта, а не выяснять из diff, что модель их обошла.
+const fixRows = backlog.filter(l => /^\|\s*R\d+\s*\|/.test(l))
+  .map(l => l.split('|').map(x => x.trim()))
+  .map(c => ({ id: c[1], title: c[2], st: c[3] }));
+const pendingFixes = fixRows.filter(r => r.st === 'todo');
+if (pendingFixes.length) {
+  say('НЕЗАКРЫТЫЕ ПРАВКИ ПО РЕВЬЮ (идут вперёд задач N): '
+    + pendingFixes.map(r => r.id).join(', '));
+  for (const r of pendingFixes) say('  ' + r.id + ' — ' + r.title);
+}
 if (next) say('следующая: ' + next.id + ' — ' + next.title + ' (демо-точка ' + (epicOf[next.id] || '?') + ')');
 else say('все задачи закрыты');
 say('');

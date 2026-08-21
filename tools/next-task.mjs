@@ -24,10 +24,12 @@ let epic = null, cur = null;
 for (const line of issues) {
   const e = line.match(/^# (D\d) — (.+)$/);
   if (e) { epic = e[1]; continue; }
-  const t = line.match(/^## (N\d+) — (.+)$/);
+  const t = line.match(/^## ([NR]\d+) — (.+)$/);
   if (t) {
     if (cur) tasks.push(cur);
-    cur = { id: t[1], title: t[2], epic, lines: [] };
+    // Правки по ревью лежат вне разделов демо-точек, поэтому epic у них нет.
+    const isFix = t[1][0] === 'R';
+    cur = { id: t[1], title: t[2], epic: isFix ? null : epic, fix: isFix, lines: [] };
     continue;
   }
   if (cur && line !== '---') cur.lines.push(line);
@@ -62,8 +64,20 @@ function substantial(p) {
   return lines >= 15 && /export|function|class/.test(src);
 }
 
+function status(t) {
+  for (const line of backlog.split(NL_SPLIT)) {
+    const cells = line.split('|').map(x => x.trim());
+    if (cells[1] === t.id) return cells[3] || null;
+  }
+  return null;
+}
+
 function done(t) {
   if (new RegExp('\\|\\s*' + t.id + '\\s*\\|[^|]*\\|\\s*done\\s*\\|').test(backlog)) return true;
+  // Правка по ревью ничего не создаёт, поэтому эвристика «файл на месте» к ней
+  // неприменима: судим только по статусу в BACKLOG. Статус later — принято, но
+  // привязано к поздней демо-точке, сейчас не выдавать.
+  if (t.fix) return status(t) !== 'todo';
   const files = created(t);
   return files.length > 0 && files.every(substantial);
 }
@@ -108,8 +122,11 @@ function healthCheck() {
 
 if (!skipChecks) healthCheck();
 
-const want = process.argv.find(a => /^[Nn]\d+$/.test(a));
-const task = want ? tasks.find(t => t.id === want.toUpperCase()) : tasks.find(t => t.epic && !done(t));
+const want = process.argv.find(a => /^[NnRr]\d+$/.test(a));
+const pendingFix = tasks.find(t => t.fix && !done(t));
+const task = want
+  ? tasks.find(t => t.id === want.toUpperCase())
+  : pendingFix || tasks.find(t => t.epic && !done(t));
 
 if (!task) {
   console.log(want ? 'задача ' + want + ' не найдена' : 'все задачи закрыты');
@@ -122,11 +139,17 @@ const total = tasks.filter(t => t.epic).length;
 console.log('='.repeat(78));
 console.log('ПРОМТ ДЛЯ НОВОЙ СЕССИИ — скопируй всё, что ниже разделителя');
 console.log('прогресс: ' + skipped + ' из ' + total + ' задач закрыто, сейчас ' + task.id +
-  ' (демо-точка ' + task.epic + ')');
+  (task.fix ? ' (правка по ревью — идёт вперёд плана)' : ' (демо-точка ' + task.epic + ')'));
 console.log('='.repeat(78));
 console.log('');
 console.log('Проект: C:\\neuroglyphs');
-console.log('Задача ' + task.id + ' — ' + task.title);
+console.log((task.fix ? 'Правка по ревью ' : 'Задача ') + task.id + ' — ' + task.title);
+if (task.fix) {
+  console.log('');
+  console.log('Это правка, которую выдал проверяющий: он нашёл дефект в уже закрытой');
+  console.log('задаче. Пока она не закрыта, следующую задачу N брать нельзя. Новых файлов');
+  console.log('не создавать — правь ровно те, что перечислены ниже.');
+}
 console.log('');
 console.log('Не составляй план. Первым действием создавай или правь файл.');
 console.log('');

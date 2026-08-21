@@ -6,8 +6,8 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const id = (process.argv[2] || '').toUpperCase();
-if (!/^N\d+$/.test(id)) {
-  console.error('нужен номер задачи, например: node tools/finish-task.mjs N01');
+if (!/^[NR]\d+$/.test(id)) {
+  console.error('нужен номер задачи или правки, например: node tools/finish-task.mjs N01');
   process.exit(1);
 }
 
@@ -44,6 +44,14 @@ if (fs.existsSync('atlas.html') && fs.existsSync('src/core/atlas.js')) {
   const r = run('node tools/atlas-check.mjs');
   if (!r.ok) refuse('атлас собран неверно', r.out);
   console.log('атлас в порядке');
+}
+
+// node --check у геометрии поля проверяет только синтаксис, а browser-check её не видит:
+// до N11 модуль ниоткуда не импортируется. Поэтому отдельный прогон с заглушкой three.
+if (fs.existsSync('src/world/fieldGeometry.js')) {
+  const r = run('node tools/geometry-check.mjs');
+  if (!r.ok) refuse('геометрия глифового поля не работает', r.out);
+  console.log('геометрия поля в порядке');
 }
 
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
