@@ -13,9 +13,9 @@ Full design: `.planning/CONCEPT.md` (concept v2, adopted 2026-08-20).
 
 ## Status
 
-Early. T00–T02 done: boot loop, seeded RNG, glyph alphabet and canvas texture atlas, and the
+Полный сброс кода 2026-08-21. План переписан под шесть демо-точек D1–D6, 62 задачи.
 seed engine (8 world fields bit-packed into a base36 code). T03 (world generator) is next.
-Live state: `.planning/STATE.md`. Task queue: `.planning/BACKLOG.md`.
+Задачи и дорожная карта: `.planning/ISSUES.md`. Статусы: `.planning/BACKLOG.md`.
 
 ## Quick start
 

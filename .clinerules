@@ -1,84 +1,113 @@
-# Rules for agents working in this repo with a small local model (Qwen via Cline)
+# Правила работы в этом репозитории
 
-## Read order at session start
-0. **Сначала выполни `node tools/project-status.mjs`** — это факты с диска: коммит,
-   сколько форм в каталоге и в мире, подключён ли каталог, какие файлы T03 существуют,
-   статусы бэклога. Документы могут отставать, вывод этой команды — нет.
-1. `.planning/STATE.md` — current task and what is actually done. Read first, update last.
-2. The task file it points to, under `.planning/tasks/`.
-3. `.planning/CONCEPT.md` — the design source of truth. Read only what your task needs.
-Ready-to-paste prompts for the current task live in `.planning/prompts-T03.md`.
+Этот файл подгружается в каждую сессию автоматически. Он главнее любых привычек.
 
-## How to work
-- Work in small steps. One tool call per message.
-- Never read more files than the current task names. Never read node_modules, .git, or build output.
-- If a fact is not in the files you were told to read, say you don't know and stop.
-  Do not guess file names, function names, or paths.
-- Do not touch files the task did not name. Do not reformat code you were not asked to change.
-- When the task says STOP, stop and report: what you changed, what command you ran, and its exact output.
-- On Windows use `cd /d` when changing drives, or pass absolute paths instead of relying on cd.
-- **One task per session.** Finish one `T##`, update bookkeeping, commit, then STOP.
-  Do not start the next task in the same session.
-- **В конце сессии обнови `.planning/STATE.md`**: строку текущей задачи и запись в журнал
-  сессий (что сделано, чем проверено, что осталось). Без этого следующая сессия начнёт с
-  неверной картины — так уже терялось время.
-- End-of-session bookkeeping, in this order: task file status → `.planning/BACKLOG.md`
-  → `.planning/STATE.md` (append a session-log row) → knowledge-graph files if behavior changed.
-- Commit message format: `T##: <imperative summary>`.
+## Протокол сессии
 
-## What this project is (concept v2, adopted 2026-08-20)
+1. **Первое действие — команда, а не размышления.** Если текст задачи тебе уже дан —
+   начинай выполнять. Если нет — выполни `node tools/next-task.mjs` и делай ровно то,
+   что он напечатал.
+2. Не составляй план. Не пересказывай задачу. Не перечисляй варианты.
+3. Одна сессия = одна задача. Не начинай следующую, даже если осталось время.
+4. Читай только те файлы, что перечислены в задаче. Ничего больше не открывать: чтение
+   лишних файлов съедает сессию, и ход обрывается на середине.
+5. **Финал:** прогнать команду проверки из задачи, затем `node tools/finish-task.mjs <ID>`,
+   затем напечатать STOP и короткий отчёт. `finish-task` сам отметит задачу, сделает коммит
+   и напечатает промт для следующей сессии.
+6. `.planning/BACKLOG.md` и `.planning/ISSUES.md` руками не править — их ведут инструменты.
 
-NEUROGLYPHS is an endless generative kaleidoscope explorer. You fly through infinite
-abstract 3D worlds made entirely of glyphs, formulas and light. Each world is generated
-deterministically from a seed; collected "things" fold back into the seed and shape the
-next world. Music is the heartbeat — everything pulses and reacts to it. No goal, no
-victory, no death. Every world has exactly ONE rectangular exit with a shaped hole.
+## Если проверка не проходит
 
-Pillars: seed = world; music = heartbeat; no goal / no death; everything is symbols;
-worlds are collectible (100 curated + infinite random + share by code); one exit.
+Три попытки максимум. После третьей — сообщи точный текст ошибки и STOP, ничего больше не
+меняя. Ослаблять проверку, снижать порог, удалять тест или урезать задачу ради зелёного
+результата запрещено. Честный провал полезнее зелени с подлогом.
 
-**Concept v1 is dead.** If you find text about collecting tokens into a bounded context
-window, inference events, synapses, neural-network layers, or the folders `src/systems/`,
-`src/ui/`, `src/data/` — that is stale wording, not a requirement. Delete it instead of
-implementing it. The last code leftover (`buildContextRing` in `src/main.js`) was renamed
-to `buildOrbitRing` on 2026-08-21; the dead CSS rules `#context-bar`/`#context-fill`
-were removed from `index.html` in the same session.
+## Что проверяется автоматически при закрытии задачи
 
-## Invariants
-- INV-1: no `Math.random()` in world generation — seeded PRNG only (`src/core/rng.js`).
-- INV-2: all visuals are glyph-based.
-- INV-3: same seed = same world.
-- INV-4: no player death, no fail state.
-- INV-5: music drives pulsation and reactivity.
-- INV-6: the exit is always rectangular and always findable.
-- INV-8: no text inside the world; textual feedback belongs to the DOM HUD.
+`tools/finish-task.mjs` сам, до отметки и коммита, прогоняет:
 
-## Facts that are easy to get wrong
-- The seed engine is `src/core/seed.js`, the PRNG is `src/core/rng.js`. There is no `src/data/`.
-- There is **no bundler and no dependencies**. Three.js r160 arrives through a CDN import map
-  in `index.html`. `npm run dev` (= `npm start`) serves static files via `server.js`;
-  `npm run build` is deliberately a no-op.
-- `npm test` runs plain node files and must print `DETERMINISM_OK` and `SEED_OK`
-  (plus `WORLD_OK` once T03 lands).
-- **Node tests cannot import `three`** — the import map only exists in the browser.
-  Keep pure math (positions, counts, params) in separate exported functions and test those.
-- Glyph textures: dispose them on rebuild, or GPU memory leaks.
-- Commit messages and task files in English; docs and in-game text may be Russian.
+1. `npm test` — весь набор тестов, а не только твой. Падает — задача остаётся todo.
+2. `tools/browser-check.mjs` — открывает страницу в настоящем Chrome и ловит ошибки
+   консоли, исключения и неудавшиеся запросы, плюс снимает скриншот в `.planning/shots/`.
+   Есть хоть одна ошибка — задача остаётся todo.
 
-## Recurring mistakes (add to this list when they repeat)
-- **Seed round-trip:** concatenating per-field base36 chars gives ambiguous boundaries.
-  Pack all fields into one integer (shift + OR), then convert to base36 once.
-  Test the round-trip on ≥200 random parameter sets.
-- **Export mismatch between module and test:** define the expected return shape in the task
-  file before implementing, or write the test first.
-- **Signature drift:** `randomSeed(rng?)` takes an optional argument, unlike what an older
-  task file claimed. Record actual signatures in the task file.
-- **Stale docs sending agents the wrong way:** an agent read the v1 concept and started
-  designing a context-window mechanic that no longer exists. When a doc disagrees with
-  `.planning/STATE.md`, STATE.md and CONCEPT.md win — and fix the stale doc separately.
-- **`cd` in the terminal not taking effect:** an agent ran `git status` from the wrong
-  directory and concluded the repo was corrupted. Use `cd /d` or absolute paths.
+3. `tools/audit-task.mjs` — сверяет изменённые файлы со списком из задачи и ищет признаки
+   халтуры: `Math.random()`, одинаковые тела функций, подозрительно малое число точек,
+   файлы-пустышки, правку тестов и инструментов мимо задачи. Найденное пишется в
+   `.planning/review/<ID>.md`, нарушение инварианта откатывает закрытие задачи.
 
-## Environment
-- Windows 11, cmd shell, git available, `gh` CLI not installed.
-- No `gh` auth: for pushing, use a token in the remote URL or ask the user. Never commit tokens.
+Обойти эти воротa нельзя и не нужно. Если они не пускают — значит код ещё не работает.
+Правь причину, а не проверку. Три неудачи — печатай `ПРОВАЛ <ID>` и STOP.
+
+Откат чужой сломанной задачи (делает человек, не ты): `node tools/undo-task.mjs N05`.
+
+## Сверка с проверяющим
+
+`finish-task` сам решает, когда нужна сверка, и печатает это человеку. Поводы: закрыта
+демо-точка, аудит оставил замечания, задача с визуальной приёмкой, либо просто каждая
+третья закрытая задача. Тогда человек выполняет `node tools/report.mjs` и отправляет
+вывод вместе со скриншотом. Тебе самому ничего отправлять не нужно — только напечатать
+то, что велел `finish-task`.
+
+## Что писать, а что нет
+
+- «Создать файл» — пиши новый файл целиком.
+- «Правка, до N строк» — меняй только названное, не переписывай файл заново.
+- Не рефактори по пути, не переименовывай существующее, не добавляй зависимостей.
+  Сборщика нет: всё живёт на import map и голом Node.
+
+## Инварианты проекта (нарушение = задача не сделана)
+
+1. Никакого `Math.random()` в генерации мира — только сеяный PRNG из `src/core/rng.js`.
+2. Все визуалы — глифы, точки, линии или шейдеры на глиф-геометрии. Других ассетов нет.
+3. Один сид = один мир. Тот же сид даёт тот же мир побайтово.
+4. Игрок не умирает, fail-state нет.
+5. Музыка управляет пульсацией; если файла нет, играет встроенный генератор.
+6. Выход всегда прямоугольный и всегда находимый.
+7. Тот же сид плюс те же собранные вещи = тот же следующий мир.
+8. Внутри мира нет текста как интерфейса: задачи сообщаются цветом, пульсацией, частотой.
+   Формулы и надписи — декор, а не инструкция.
+
+## Что это за проект
+
+Бесконечный генеративный калейдоскоп: летаешь через миры, целиком сделанные из глифов,
+формул и света. Мир детерминирован сидом. Собранные вещи складываются в сид и определяют
+следующий мир. Музыка — сердцебиение: всё пульсирует под неё. Цели и смерти нет.
+Полный дизайн — `.planning/CONCEPT.md`, при расхождении с чем угодно прав он.
+
+## Куда смотреть
+
+- `.planning/ISSUES.md` — 62 задачи и дорожная карта из шести демо-точек D1–D6.
+- `.planning/BACKLOG.md` — статусы; меняются только через `tools/finish-task.mjs`.
+- `ai/knowledge-graph/` — карта модулей.
+
+## Решения по производительности приняты, не переигрывать
+
+- `gl_PointSize` зажат сверху, `depthWrite: false`, additive blending — иначе неон
+  превращается в грязные квадраты.
+- Геометрия наполняется чанками через `requestAnimationFrame`: 400 000 точек синхронным
+  циклом застывают на секунды.
+- Атлас глифов кэшируется и освобождается — иначе память течёт на каждом пересеве.
+- Отражения делаются отражённой копией с половинной плотностью, не `Reflector`: честное
+  отражение стоит второго полного прохода рендера.
+- Bloom считается на половинном разрешении.
+
+## Грабли, на которые уже наступали
+
+- **Хеш для разброса точек.** Самодельный хеш на одном сдвиге даёт корреляцию соседних
+  значений минус 0.42 и заполненность объёма 0.085 против 0.77 — точки слипаются в комок,
+  и все формы выходят вырожденными. Брать только splitmix32 из задачи `N03`.
+- **Круговой прогон сида.** Склейка base36-символов по полю даёт неоднозначные границы.
+  Упаковывать все поля в одно целое (сдвиг и OR), и только потом переводить в base36.
+- **Тесты не могут импортировать `three`** — import map существует только в браузере.
+  Чистую математику держать в отдельных экспортируемых функциях и тестировать их.
+- **`cd` между дисками** — использовать `cd /d` или абсолютные пути. Один агент запустил
+  `git status` не из той папки и решил, что репозиторий сломан.
+- **Правка большого файла вместо создания нового** заканчивается обрывом хода. Если задача
+  выглядит как «переделай функции в большом файле» — значит она сформулирована неверно,
+  сообщи об этом и STOP.
+
+## Окружение
+
+- Windows 11, git есть, `gh` CLI не установлен.
+- Пуш по токену в URL удалённого репозитория или через пользователя. Токены не коммитить.

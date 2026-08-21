@@ -1,0 +1,144 @@
+// Печатает промт следующей незакрытой задачи из .planning/ISSUES.md.
+//
+//   node tools/next-task.mjs          следующая задача со статусом todo
+//   node tools/next-task.mjs N07      конкретная задача
+//
+// Статус берётся из .planning/BACKLOG.md. Дополнительная защита: если все файлы,
+// которые задача должна создать, уже существуют, задача считается сделанной даже
+// когда её забыли отметить.
+import fs from 'node:fs';
+import { execSync } from 'node:child_process';
+
+const issues = fs.readFileSync('.planning/ISSUES.md', 'utf8').split(/\r?\n/);
+const backlog = fs.readFileSync('.planning/BACKLOG.md', 'utf8');
+
+const head = (() => {
+  const a = issues.findIndex(l => l.startsWith('## Правила для исполнителя'));
+  const b = issues.findIndex(l => l.startsWith('# Дорожная карта'));
+  return issues.slice(a + 1, b).join('\n').trim();
+})();
+
+const tasks = [];
+let epic = null, cur = null;
+for (const line of issues) {
+  const e = line.match(/^# (D\d) — (.+)$/);
+  if (e) { epic = e[1]; continue; }
+  const t = line.match(/^## (N\d+) — (.+)$/);
+  if (t) {
+    if (cur) tasks.push(cur);
+    cur = { id: t[1], title: t[2], epic, lines: [] };
+    continue;
+  }
+  if (cur && line !== '---') cur.lines.push(line);
+}
+if (cur) tasks.push(cur);
+
+function section(t, name) {
+  const i = t.lines.findIndex(l => l.startsWith('**' + name + ':**'));
+  if (i < 0) return '';
+  const out = [t.lines[i].replace('**' + name + ':**', '').trim()];
+  for (let j = i + 1; j < t.lines.length; j++) {
+    const l = t.lines[j];
+    if (!l.trim() || /^\*\*[А-Яа-яA-Za-z ]+:\*\*/.test(l)) break;
+    out.push(l.trim());
+  }
+  return out.join(' ').trim();
+}
+
+function created(t) {
+  const f = section(t, 'Файлы');
+  const i = f.indexOf('создать');
+  if (i < 0) return [];
+  const tail = f.slice(i).split(/,\s*правка/)[0];
+  return [...tail.matchAll(/`([^`]+)`/g)].map(m => m[1]).filter(p => /\.(mjs|js|html|json)$/.test(p));
+}
+
+function done(t) {
+  if (new RegExp('\\|\\s*' + t.id + '\\s*\\|[^|]*\\|\\s*done\\s*\\|').test(backlog)) return true;
+  const files = created(t);
+  return files.length > 0 && files.every(p => fs.existsSync(p));
+}
+
+const skipChecks = process.argv.includes('--skip-checks');
+
+function tryRun(cmd) {
+  try {
+    return { ok: true, out: execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+  } catch (e) {
+    return { ok: false, out: (e.stdout || '') + (e.stderr || '') || e.message };
+  }
+}
+
+function healthCheck() {
+  const NL = String.fromCharCode(10);
+  const pkg = fs.existsSync('package.json') ? JSON.parse(fs.readFileSync('package.json', 'utf8')) : {};
+  const checks = [];
+  if (pkg.scripts && pkg.scripts.test) checks.push(['npm test', 'npm test']);
+  if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
+    checks.push(['страница в браузере', 'node tools/browser-check.mjs --name health --wait 4']);
+  }
+  for (const [label, cmd] of checks) {
+    const r = tryRun(cmd);
+    if (!r.ok) {
+      console.log('#'.repeat(78));
+      console.log('НЕ НАЧИНАЙ НОВУЮ ЗАДАЧУ: проект сломан ещё до неё');
+      console.log('#'.repeat(78));
+      console.log('Провалилась проверка: ' + label);
+      console.log('');
+      console.log(r.out.trim().split(NL).slice(-20).join(NL));
+      console.log('');
+      console.log('Это значит, что поломку принесла одна из предыдущих задач.');
+      console.log('Человеку: покажи этот вывод Клоду. Быстрый откат последней задачи —');
+      console.log('  node tools/undo-task.mjs <ID последней закрытой задачи>');
+      console.log('Модели: ничего не делай, напечатай STOP.');
+      process.exit(2);
+    }
+    console.log('проверка перед стартом: ' + label + ' — в порядке');
+  }
+}
+
+if (!skipChecks) healthCheck();
+
+const want = process.argv.find(a => /^[Nn]\d+$/.test(a));
+const task = want ? tasks.find(t => t.id === want.toUpperCase()) : tasks.find(t => t.epic && !done(t));
+
+if (!task) {
+  console.log(want ? 'задача ' + want + ' не найдена' : 'все задачи закрыты');
+  process.exit(0);
+}
+
+const skipped = tasks.filter(t => t.epic && done(t)).length;
+const total = tasks.filter(t => t.epic).length;
+
+console.log('='.repeat(78));
+console.log('ПРОМТ ДЛЯ НОВОЙ СЕССИИ — скопируй всё, что ниже разделителя');
+console.log('прогресс: ' + skipped + ' из ' + total + ' задач закрыто, сейчас ' + task.id +
+  ' (демо-точка ' + task.epic + ')');
+console.log('='.repeat(78));
+console.log('');
+console.log('Проект: C:\\neuroglyphs');
+console.log('Задача ' + task.id + ' — ' + task.title);
+console.log('');
+console.log('Не составляй план. Первым действием создавай или правь файл.');
+console.log('');
+console.log(task.lines.join('\n').trim());
+console.log('');
+console.log('## Правила');
+console.log('');
+console.log(head);
+console.log('');
+console.log('## Как закончить сессию');
+console.log('');
+console.log('1. Выполни команду проверки из этой задачи. Она должна дать указанный результат.');
+console.log('   Не проходит — исправь файл и запусти снова, но не больше трёх попыток.');
+console.log('2. Если после трёх попыток проверка так и не прошла — НЕ вызывай finish-task.');
+console.log('   Напечатай ровно это и остановись:');
+console.log('      ПРОВАЛ ' + task.id + '. Скопируй этот вывод Клоду, новую сессию не начинай.');
+console.log('   Ниже приложи точный текст ошибки и список того, что уже создал.');
+console.log('3. Если проверка прошла, выполни ровно это:');
+console.log('      node tools/finish-task.mjs ' + task.id);
+console.log('   Он сам отметит задачу, сделает коммит и напечатает инструкцию для человека.');
+console.log('4. Напечатай STOP и короткий отчёт: какие файлы создал, что вывела проверка.');
+console.log('');
+console.log('Запрещено: менять пороги в тестах и инструментах, трогать файлы вне списка,');
+console.log('начинать следующую задачу, править .planning/ISSUES.md и .planning/BACKLOG.md руками.');

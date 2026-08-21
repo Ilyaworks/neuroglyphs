@@ -1,39 +1,103 @@
 # BACKLOG — NEUROGLYPHS (Concept v2)
 
-> Concept v2 adopted 2026-08-20. Full code reset 2026-08-21 — all tasks restart from scratch.
-> See `.planning/CONCEPT.md` for the full design.
+> Полный текст задач: `.planning/ISSUES.md`. Дизайн: `.planning/CONCEPT.md`.
+> Полный сброс кода 2026-08-21, план переписан под демо-точки D1–D6.
+> Старые файлы `.planning/tasks/T*.md` относятся к прежней нумерации и больше не актуальны.
 
-| ID   | Title                                            | Status | Task File                       | Depends On |
-|------|--------------------------------------------------|--------|---------------------------------|------------|
-| T00  | Project scaffold: Three.js boot loop             | todo   | tasks/T00-scaffold.md           | —          |
-| T01  | Seeded RNG + glyph alphabet + canvas textures    | todo   | tasks/T01-glyph-textures.md     | T00        |
-| T02  | Seed engine: encode/decode, world params         | todo   | tasks/T02-seed-engine.md        | T01        |
-| T03  | World generator v1: structures + particles       | todo   | tasks/T03-world-gen.md          | T02        |
-| T04  | Music engine: Web Audio, FFT, reactivity hooks   | todo   | tasks/T04-music-engine.md       | T02        |
-| T05  | Visual reactor: pulsation, rim light, spectral   | todo   | tasks/T05-visual-reactor.md     | T03, T04   |
-| T06  | Movement: fly-cam + freeze/inspect mode          | todo   | tasks/T06-movement.md           | T03        |
-| T07  | World transition: exit portal + re-seed          | todo   | tasks/T07-transition.md         | T05, T06   |
-| T08  | Advanced visuals: reflections, distortion, mercury | todo | tasks/T08-advanced-visuals.md | T05        |
-| T09  | Mood system: palettes + behavior per mood        | todo   | tasks/T09-mood-system.md        | T03        |
-| T10  | Neuro-prompt: text → JSON parameter tweaks       | todo   | tasks/T10-neuro-prompt.md       | T03        |
-| T11  | Curated seeds (100) + seed sharing + built-in music | todo | tasks/T11-seeds-sharing.md   | T07        |
-| T12  | Polish: menu, settings, audio upload, perf       | todo   | tasks/T12-polish.md             | T08, T09, T10 |
-| T13  | New shapes: glyph-core+ring, geometry, space     | todo   | tasks/T13-shapes-v2.md          | T03        |
-| T14  | 64 new shapes from user descriptions (4 families) | todo  | tasks/T14-shapes-v3.md          | T13        |
 
-## Ordering Notes
+## D1 — Первый мир
 
-- **Critical path:** T02 → T03 → T05 → T07 → T11
-- T04, T06, T09 can run in parallel (different files, minimal coupling)
-- T08, T10 after core visuals exist
-- T12 last
-- Each task = one session. Update STATE.md + this file at the end of each session.
+| ID | Задача | Статус |
+|---|---|---|
+| N01 | Сервер и страница | todo |
+| N02 | Рендер-луп | todo |
+| N03 | Сеяный PRNG | todo |
+| N04 | Тест PRNG | todo |
+| N05 | Алфавит глифов | todo |
+| N06 | Атлас текстур | todo |
+| N07 | Кодек сида | todo |
+| N08 | Тест сида | todo |
+| N09 | Геометрия глифового поля | todo |
+| N10 | Шейдер глифового поля | todo |
+| N11 | Первый мир на экране | todo |
+| N12 | Раскладки: архитектурные три | todo |
+| N13 | Раскладки: органические три | todo |
+| N14 | Раскладки: неевклидовы две и сборка | todo |
+| N15 | Тест детерминизма раскладок | todo |
+| N16 | Структура в мире | todo |
+| N17 | Портал выхода | todo |
+| N18 | Портал в мире и близость к нему | todo |
+| N19 | Fly-cam | todo |
+| N20 | Freeze-режим | todo |
+| N21 | Демо D1 | todo |
 
-## Parallel-Work Protocol
+## D2 — Картинка как на референсе
 
-Multiple agents may work different tasks simultaneously:
-- One task file = one session = one branch (or sequential commits on main if non-conflicting).
-- Never edit the same file as another in-flight task unless the task file says so.
-- `src/core/*` is shared infrastructure — changes there require updating
-  `test/determinism.test.mjs` and re-running it.
-- After each session: update STATE.md, BACKLOG.md status, commit, push.
+| ID | Задача | Статус |
+|---|---|---|
+| N22 | Bloom | todo |
+| N23 | Fisheye и хроматическая аберрация | todo |
+| N24 | Подключение дисторсий | todo |
+| N25 | Палитры и настроения | todo |
+| N26 | Палитра в сцене | todo |
+| N27 | Возврат каталога форм | todo |
+| N28 | Форма поля в мире | todo |
+| N29 | Отражающий пол | todo |
+| N30 | Формулы и надписи из глифов | todo |
+| N31 | Демо D2 и сравнение с референсом | todo |
+
+## D3 — Музыка = сердцебиение
+
+| ID | Задача | Статус |
+|---|---|---|
+| N32 | Аудио-движок | todo |
+| N33 | Загрузка трека | todo |
+| N34 | Детекция темпа | todo |
+| N35 | Тест темпа | todo |
+| N36 | Тональность трека | todo |
+| N37 | Встроенный генеративный дрон | todo |
+| N38 | Реактор: пульсация | todo |
+| N39 | Реактор: спектр и rim light | todo |
+| N40 | Демо D3 | todo |
+
+## D4 — Сбор и прогресс
+
+| ID | Задача | Статус |
+|---|---|---|
+| N41 | Коллекционные вещи | todo |
+| N42 | Сбор и пульс-рябь | todo |
+| N43 | HUD: сид и счётчик | todo |
+| N44 | HUD: иконки и музыка | todo |
+| N45 | Аддитивный сид | todo |
+| N46 | Тест аддитивного сида и демо D4 | todo |
+
+## D5 — Бесконечность
+
+| ID | Задача | Статус |
+|---|---|---|
+| N47 | Переход между мирами | todo |
+| N48 | Комбинация выхода решает следующий мир | todo |
+| N49 | Якоря при пересеве | todo |
+| N50 | Сто курированных сидов | todo |
+| N51 | Меню | todo |
+| N52 | World book и localStorage, демо D5 | todo |
+
+## D6 — Атмосфера и полировка
+
+| ID | Задача | Статус |
+|---|---|---|
+| N53 | Дыхание и дрейф температуры | todo |
+| N54 | Глиф-созвездия | todo |
+| N55 | Глиф-дождь | todo |
+| N56 | Эхо-объекты и временные эхо | todo |
+| N57 | Интерференция пересечённых миров | todo |
+| N58 | Зоны плотности и локальные дисторсии | todo |
+| N59 | Задачи без текста | todo |
+| N60 | Настройки и бюджет производительности | todo |
+| N61 | Neuro-prompt: схема и валидатор | todo |
+| N62 | Демо D6 | todo |
+
+## Правило сессии
+
+Одна задача = один issue = одна сессия = один новый файл. Перед началом читать
+только те файлы, что перечислены в задаче. В конце — команда проверки из задачи и STOP.
