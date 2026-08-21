@@ -9,27 +9,16 @@ const VERTEX_SHADER = /* glsl */ `
   uniform float uTime;
   uniform vec3 uSpectrum[4];
 
-  varying vec2 vUv;
   varying vec3 vColor;
+  varying float vGlyph;
 
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     float computed = size * (1.0 + 0.5 * uPulse) * (300.0 / -mvPosition.z);
     gl_PointSize = min(computed, 64.0);
     gl_Position = projectionMatrix * mvPosition;
-
-    float g = mod(glyph, 128.0);
-    float c = mod(g, 16.0);
-    float r = floor(g / 16.0);
-    float pad = 0.5 / 64.0;
-    vUv = vec2(
-      (c + pad) / 16.0,
-      1.0 - (floor(r + 1.0 - pad) / 8.0)
-    );
-
-    float mixIndex = mod(offset * 4.0, 4.0);
-    vec3 colA = uSpectrum[int(mixIndex)];
-    vColor = colA;
+    vGlyph = glyph;
+    vColor = uSpectrum[int(mod(offset * 4.0, 4.0))];
   }
 `;
 
@@ -39,15 +28,22 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uTime;
   uniform vec3 uSpectrum[4];
 
-  varying vec2 vUv;
   varying vec3 vColor;
+  varying float vGlyph;
 
   void main() {
-    vec4 texel = texture2D(uAtlas, vUv);
-    float alpha = texel.a;
-    if (alpha < 0.01) discard;
-    vec3 color = vColor * (0.8 + 0.4 * uPulse);
-    gl_FragColor = vec4(color, alpha);
+    float g = mod(vGlyph, 128.0);
+    float c = mod(g, 16.0);
+    float r = floor(g / 16.0);
+    float pad = 0.5 / 64.0;
+    float u0 = (c + pad) / 16.0;
+    float u1 = (c + 1.0 - pad) / 16.0;
+    float v0 = 1.0 - (r + 1.0 - pad) / 8.0;
+    float v1 = 1.0 - (r + pad) / 8.0;
+    vec2 uv = vec2(mix(u0, u1, gl_PointCoord.x), mix(v1, v0, gl_PointCoord.y));
+    vec4 texel = texture2D(uAtlas, uv);
+    if (texel.a < 0.01) discard;
+    gl_FragColor = vec4(vColor * (0.8 + 0.4 * uPulse), texel.a);
   }
 `;
 
