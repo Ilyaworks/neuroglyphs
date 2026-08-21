@@ -47,13 +47,12 @@ export function encodeSeed(fields) {
 
 export function decodeSeed(code) {
   if (typeof code !== "string") return null;
-  const parts = code.toLowerCase().split("-");
-  if (parts.length !== 3) return null;
-  const full = parts.join("");
-  if (!/^[0-9a-z]{12}$/.test(full)) return null;
+  const full = code.toLowerCase();
+  if (!/^[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}$/.test(full)) return null;
+  const joined = full.replace(/-/g, "");
   let packed = 0n;
   for (let i = 0; i < 12; i++) {
-    const c = "0123456789abcdefghijklmnopqrstuvwxyz".indexOf(full[i]);
+    const c = "0123456789abcdefghijklmnopqrstuvwxyz".indexOf(joined[i]);
     if (c < 0) return null;
     packed = packed * 36n + BigInt(c);
   }

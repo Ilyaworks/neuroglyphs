@@ -62,6 +62,9 @@ function randomFields(rng) {
     " 0000-0000-0000",
     "0000_0000_0000",
     "0000-0000-0000\n",
+    "00-00000000-00",
+    "000-00000-0000",
+    "0-0-0000000000",
   ];
   for (const g of garbage) {
     if (decodeSeed(g) !== null) fail("test 3: decodeSeed should be null for " + JSON.stringify(g));
