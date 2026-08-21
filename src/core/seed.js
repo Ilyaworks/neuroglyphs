@@ -1,4 +1,4 @@
-import { mulberry32, strToSeed } from "./rng.js";
+import { mulberry32 } from "./rng.js";
 
 export const SEED_FIELDS = [
   { name: "structure", bits: 3 },
@@ -47,7 +47,7 @@ export function encodeSeed(fields) {
 
 export function decodeSeed(code) {
   if (typeof code !== "string") return null;
-  const parts = code.split("-");
+  const parts = code.toLowerCase().split("-");
   if (parts.length !== 3) return null;
   const full = parts.join("");
   if (!/^[0-9a-z]{12}$/.test(full)) return null;
@@ -57,7 +57,8 @@ export function decodeSeed(code) {
     if (c < 0) return null;
     packed = packed * 36n + BigInt(c);
   }
-  const fields = { rng: mulberry32(Number(strToSeed(code.toLowerCase()))) };
+  if (packed >= 1n << 40n) return null;
+  const fields = { rng: mulberry32(Number(packed % 4294967296n)) };
   let shift = 0n;
   for (const f of SEED_FIELDS) {
     fields[f.name] = Number((packed >> shift) & ((1n << BigInt(f.bits)) - 1n));
