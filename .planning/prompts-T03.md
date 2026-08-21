@@ -7,7 +7,7 @@ Do not merge two prompts into one session.
 
 ## P0 — fix the shadowed buildGlyphField in main.js (do this FIRST)
 
-Project: C:\Users\onlin\Desktop\neuroglyphs
+Project: C:\neuroglyphs
 
 `src/main.js` has uncommitted work from a previous session (+394/-193 lines) and it is
 currently broken at runtime. Facts, already verified — do not re-derive them:
@@ -59,7 +59,7 @@ and what the page looked like.
 
 ## P1 — src/world/structures.js (новый файл, без интеграции)
 
-Проект: C:\Users\onlin\Desktop\neuroglyphs
+Проект: C:\neuroglyphs
 Задача: T03, шаг 1 из 4. Прочитай `.planning/tasks/T03-world-gen.md` ТОЛЬКО ради таблицы
 типов структур. Весь репозиторий читать не нужно.
 
@@ -90,7 +90,7 @@ and what the page looked like.
 
 ## P2 — src/world/generator.js (новый файл, без интеграции)
 
-Проект: C:\Users\onlin\Desktop\neuroglyphs
+Проект: C:\neuroglyphs
 Задача: T03, шаг 2 из 4. Перед тем как писать, прочитай ТОЛЬКО `src/world/structures.js`,
 `src/core/seed.js` и `src/core/glyphTexture.js`. Больше ничего.
 
@@ -124,7 +124,7 @@ export function getExitPosition(worldGroup)       // -> THREE.Vector3
 
 ## P3 — test/world.test.mjs
 
-Проект: C:\Users\onlin\Desktop\neuroglyphs
+Проект: C:\neuroglyphs
 Задача: T03, шаг 3 из 4. Прочитай ТОЛЬКО `src/world/structures.js`, `test/seed.test.mjs`
 (ради стиля существующих тестов) и `package.json`.
 
@@ -148,7 +148,7 @@ export function getExitPosition(worldGroup)       // -> THREE.Vector3
 
 ## P4 — интеграция в main.js + бухгалтерия
 
-Проект: C:\Users\onlin\Desktop\neuroglyphs
+Проект: C:\neuroglyphs
 Задача: T03, шаг 4 из 4. Прочитай ТОЛЬКО `src/main.js` и `src/world/generator.js`.
 
 1. В `src/main.js` замени построение статического глифового поля вызовом
@@ -170,7 +170,7 @@ export function getExitPosition(worldGroup)       // -> THREE.Vector3
 
 ## S1 — каталог разнообразных форм (новый файл)
 
-Проект: C:\Users\onlin\Desktop\neuroglyphs
+Проект: C:\neuroglyphs
 
 Сейчас архетипы формы глифового поля лежат прямо в `src/main.js` в объекте `SHAPES`:
 169 функций, из них 88 — вариации тора (`torusWave2…10`, `torusRipple2…9`,
@@ -241,7 +241,7 @@ node -e "import('./src/world/shapeCatalog.js').then(m=>{const p={radius:60,flatt
 
 ## S2 — тест разнообразия форм
 
-Проект: C:\Users\onlin\Desktop\neuroglyphs
+Проект: C:\neuroglyphs
 
 Каталог `src/world/shapeCatalog.js` готов. Теперь нужен тест, который доказывает, что
 формы действительно разные, а не переписанные друг из друга.
