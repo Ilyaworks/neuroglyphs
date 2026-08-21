@@ -111,7 +111,7 @@ const reviewFile = '.planning/review/' + id + '.md';
 const hasNotes = fs.existsSync(reviewFile) &&
   /## (нарушения|предупреждения)/.test(fs.readFileSync(reviewFile, 'utf8'));
 const everyThird = doneCount % 3 === 0;
-const askReport = Boolean(milestone) || hasNotes || everyThird || Boolean(eyes);
+const askReport = true;
 
 console.log('');
 console.log('#'.repeat(78));
@@ -132,11 +132,11 @@ if (milestone) {
 }
 if (askReport) {
   console.log('');
-  console.log('СВЕРКА С КЛОДОМ. Причина: ' +
+  console.log('СООБЩЕНИЕ КЛОДУ. Повод: ' +
     (milestone ? 'закрыта демо-точка ' + milestone
       : hasNotes ? 'аудит оставил замечания по ' + id
       : eyes ? 'задача с визуальной приёмкой'
-      : 'плановая сверка, закрыто задач: ' + doneCount) + '.');
+      : 'обычный отчёт по задаче, закрыто задач: ' + doneCount) + '.');
   console.log('Выполни и отправь весь вывод Клоду, вместе со скриншотом из списка внизу:');
   console.log('');
   console.log('  node tools/report.mjs');

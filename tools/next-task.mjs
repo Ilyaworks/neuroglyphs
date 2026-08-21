@@ -8,6 +8,7 @@
 // когда её забыли отметить.
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
+const NL_SPLIT = new RegExp(String.fromCharCode(13) + "?" + String.fromCharCode(10));
 
 const issues = fs.readFileSync('.planning/ISSUES.md', 'utf8').split(/\r?\n/);
 const backlog = fs.readFileSync('.planning/BACKLOG.md', 'utf8');
@@ -53,10 +54,18 @@ function created(t) {
   return [...tail.matchAll(/`([^`]+)`/g)].map(m => m[1]).filter(p => /\.(mjs|js|html|json)$/.test(p));
 }
 
+function substantial(p) {
+  if (!fs.existsSync(p)) return false;
+  if (!/[.](mjs|js)$/.test(p)) return true;
+  const src = fs.readFileSync(p, 'utf8');
+  const lines = src.split(NL_SPLIT).filter(l => l.trim()).length;
+  return lines >= 15 && /export|function|class/.test(src);
+}
+
 function done(t) {
   if (new RegExp('\\|\\s*' + t.id + '\\s*\\|[^|]*\\|\\s*done\\s*\\|').test(backlog)) return true;
   const files = created(t);
-  return files.length > 0 && files.every(p => fs.existsSync(p));
+  return files.length > 0 && files.every(substantial);
 }
 
 const skipChecks = process.argv.includes('--skip-checks');
