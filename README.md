@@ -9,40 +9,45 @@ reacts to it.
 > exactly one rectangular exit; fill its shaped hole correctly and the next world is a
 > curated one, ignore it and the next world is random.
 
-Full design: `.planning/CONCEPT.md` (concept v2, adopted 2026-08-20).
+## Состояние
 
-## Status
+Полный сброс кода 2026-08-21. Плана из старых задач `T00`–`T14` больше нет: работа идёт
+по 62 мелким задачам `N01`–`N62`, разложенным на шесть демо-точек D1–D6.
 
-Полный сброс кода 2026-08-21. План переписан под шесть демо-точек D1–D6, 62 задачи.
-seed engine (8 world fields bit-packed into a base36 code). T03 (world generator) is next.
-Задачи и дорожная карта: `.planning/ISSUES.md`. Статусы: `.planning/BACKLOG.md`.
+- `.planning/CONCEPT.md` — дизайн целиком, источник истины
+- `.planning/ISSUES.md` — задачи и дорожная карта
+- `.planning/BACKLOG.md` — статусы, ведутся инструментами
+- `.planning/REFERENCE.md` — чек-лист приёмки картинки
 
-## Quick start
+## Как ведётся работа
 
-No dependencies and no build step — Three.js r160 comes from a CDN import map.
+Код пишет локальная модель, по одной задаче за сессию. Человек только запускает сессии
+строкой:
 
-```bash
-npm run dev
+```
+Первым действием выполни: node tools/next-task.mjs
+Дальше делай ровно то, что он напечатал. Не составляй план.
 ```
 
-Open the printed local URL. Add `?seed=abc123` to load a specific world.
-`npm test` runs the determinism and seed round-trip checks.
+Инструменты конвейера:
 
-## How agents work on this repo
+| команда | что делает |
+|---|---|
+| `node tools/next-task.mjs` | печатает промт следующей задачи; не выдаёт её, если проект сломан |
+| `node tools/finish-task.mjs N01` | гоняет тесты, браузер и аудит, отмечает задачу, коммитит |
+| `node tools/audit-task.mjs N01` | ищет `Math.random()`, заглушки, копипаст, правку тестов мимо задачи |
+| `node tools/browser-check.mjs` | открывает страницу в headless Chrome, ловит ошибки, снимает скриншот |
+| `node tools/report.mjs` | сводка для проверяющего: что сделано, что подозрительно, куда смотреть |
+| `node tools/undo-task.mjs N01` | откат задачи через revert |
+| `node tools/gh-issues.mjs --push` | заливка задач в GitHub issues (нужен `GITHUB_TOKEN`) |
 
-`AGENTS.md` defines the session protocol and decomposition rules; `.clinerules` holds the
-durable project rules, invariants and recurring mistakes (it replaced CLAUDE.md — the
-working agent is Qwen via Cline, not Claude Code).
+Правила сессии, инварианты и грабли — в `.clinerules` (подгружается автоматически) и
+`AGENTS.md`.
 
-## Layout
+## Стек
 
-- `index.html`, `src/main.js` — entry point, no bundler
-- `src/core/` — seeded RNG, seed engine, glyph alphabet, canvas texture atlas
-- `src/world/` — world generation (from T03 onward)
-- `test/` — plain node test files, run by `npm test`
-- `server.js` — static dev server
-- `ai/knowledge-graph/` — machine-readable project model
-- `.planning/` — concept, backlog, state, per-task files
+Ни зависимостей, ни сборщика: Three.js приходит через CDN import map, статический сервер —
+на голом Node. `npm run dev` поднимает сервер, `npm test` гоняет проверки детерминизма.
 
 ## License
 

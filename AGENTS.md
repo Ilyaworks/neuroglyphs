@@ -29,7 +29,7 @@ node tools/finish-task.mjs N01  отмечает done, коммитит, печ�
 - `.planning/CONCEPT.md` — дизайн целиком, источник истины.
 - `.planning/ISSUES.md` — 62 задачи, дорожная карта из шести демо-точек D1–D6.
 - `.planning/BACKLOG.md` — статусы, ведутся инструментами.
-- `ai/knowledge-graph/` — карта модулей.
+- `.planning/REFERENCE.md` — чек-лист приёмки картинки.
 
 ## Инструменты
 
