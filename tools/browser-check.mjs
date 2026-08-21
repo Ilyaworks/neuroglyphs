@@ -121,10 +121,49 @@ try {
   await send('Log.enable');
   await send('Network.enable');
   await send('Page.enable');
+  const SERVED_FILE = 'index.html';
+  // Порт мог остаться занят чужим сервером — например, забытым server.mjs из другого
+  // чекаута: тогда проверка молча читает чужие файлы и всё выглядит зелёным. Один раз
+  // это уже дало ложный пропуск. Сверяем, что на порту отвечает именно этот каталог.
+  async function assertOurServer(file) {
+    const norm = t => t.split(String.fromCharCode(13)).join('');
+    const want = norm(fs.readFileSync(file, 'utf8'));
+    for (let i = 0; i < 40; i++) {
+      try {
+        const r = await fetch('http://127.0.0.1:' + PORT + '/' + file);
+        const got = norm(await r.text());
+        if (got === want) return;
+        bye(false, ['на порту ' + PORT + ' отвечает не этот проект: ' + file + ' не совпадает ' +
+          'с файлом на диске. Обычно это забытый server.mjs из другого каталога — сними ' +
+          'процесс, который держит порт, и запусти проверку снова. Кто держит порт: ' +
+        'netstat -ano | findstr :' + PORT]);
+      } catch {}
+      await sleep(250);
+    }
+    bye(false, ['сервер на порту ' + PORT + ' не ответил за 10 секунд']);
+  }
+  await assertOurServer(SERVED_FILE);
+  
   await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + urlPath });
   await sleep(waitSec * 1000);
 
-  const shot = await send('Page.captureScreenshot', { format: 'png' });
+  // Кадр может быть ещё пустым не потому, что мир не отрисовался, а потому, что three
+  // качается с CDN. Порог непустого кадра тот же, что ниже (0.005 и 40) — меняется
+  // только терпение, иначе проверка флакует и учит модель просто запускать её повторно.
+  let shot = await send('Page.captureScreenshot', { format: 'png' });
+  if (expectContent) {
+    const deadline = Date.now() + 25000;
+    let tries = 1;
+    while (Date.now() < deadline) {
+      let s = null;
+      try { s = frameStats(Buffer.from(shot.data, 'base64')); } catch {}
+      if (s && s.litShare >= 0.005 && s.maxLum >= 40) break;
+      await sleep(500);
+      shot = await send('Page.captureScreenshot', { format: 'png' });
+      tries++;
+    }
+    console.log('кадров снято до непустого: ' + tries);
+  }
   fs.mkdirSync('.planning/shots', { recursive: true });
   const file = '.planning/shots/' + shotName + '.png';
   const png = Buffer.from(shot.data, 'base64');

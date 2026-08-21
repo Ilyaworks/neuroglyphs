@@ -70,7 +70,58 @@ await send('Runtime.enable');
 await send('Log.enable');
 await send('Page.enable');
 await send('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/atlas.html' });
-await sleep(2500);
+// Атлас рисуется только после того, как загрузился three с CDN, а это бывает дольше
+// любой фиксированной паузы: на холодном кэше проба читала пустой канвас, инструмент
+// объявлял 128 пустых клеток, а повтор проходил чисто. Ждём появления чернил, со сроком.
+const READY_MS = 25000;
+const SERVED_FILE = 'atlas.html';
+// Порт мог остаться занят чужим сервером — например, забытым server.mjs из другого
+// чекаута: тогда проверка молча читает чужие файлы и всё выглядит зелёным. Один раз
+// это уже дало ложный пропуск. Сверяем, что на порту отвечает именно этот каталог.
+async function assertOurServer(file) {
+  const norm = t => t.split(String.fromCharCode(13)).join('');
+  const want = norm(fs.readFileSync(file, 'utf8'));
+  for (let i = 0; i < 40; i++) {
+    try {
+      const r = await fetch('http://127.0.0.1:' + PORT + '/' + file);
+      const got = norm(await r.text());
+      if (got === want) return;
+      bye(false, ['на порту ' + PORT + ' отвечает не этот проект: ' + file + ' не совпадает ' +
+        'с файлом на диске. Обычно это забытый server.mjs из другого каталога — сними ' +
+        'процесс, который держит порт, и запусти проверку снова. Кто держит порт: ' +
+        'netstat -ano | findstr :' + PORT]);
+    } catch {}
+    await sleep(250);
+  }
+  bye(false, ['сервер на порту ' + PORT + ' не ответил за 10 секунд']);
+}
+await assertOurServer(SERVED_FILE);
+
+const readyProbe = `(() => {
+  const c = document.getElementById('atlas');
+  if (!c || !c.width || !c.height) return 0;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  const w = Math.min(c.width, 256), h = Math.min(c.height, 256);
+  const d = g.getImageData(0, 0, w, h).data;
+  let ink = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 16) ink++;
+  return ink;
+})()`;
+const startedAt = Date.now();
+let inkSeen = 0;
+while (Date.now() - startedAt < READY_MS) {
+  try {
+    const r = await send('Runtime.evaluate', { expression: readyProbe, returnByValue: true });
+    inkSeen = Number(r.result?.value) || 0;
+  } catch { inkSeen = 0; }
+  if (inkSeen > 0) break;
+  await sleep(250);
+}
+console.log('атлас нарисован через ' + (Date.now() - startedAt) + ' мс, чернил в пробе: ' + inkSeen);
+if (!inkSeen) {
+  bye(false, ['за ' + READY_MS + ' мс атлас так и не нарисовался: канвас пустой. Обычно это ' +
+    'ошибка в модуле или недоступный CDN с three — смотри сообщения консоли выше.']);
+}
 
 const probe = `(() => {
   const c = document.getElementById('atlas');
