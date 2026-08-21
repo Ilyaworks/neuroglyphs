@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, sep as pathSep } from 'node:path';
 
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -28,14 +28,14 @@ const server = http.createServer(async (req, res) => {
     let pathname = decodeURIComponent(url.pathname);
     if (pathname.endsWith('/')) pathname += 'index.html';
     const filePath = normalize(join(ROOT, pathname));
-    if (!filePath.startsWith(ROOT)) {
+    if (filePath !== ROOT && !filePath.startsWith(ROOT + pathSep)) {
       res.writeHead(403);
       res.end('Forbidden');
       return;
     }
     const body = await readFile(filePath);
     const type = TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': type });
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
     res.end(body);
   } catch {
     res.writeHead(404);

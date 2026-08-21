@@ -1,4 +1,4 @@
-import { mulberry32, hash32 } from "../src/core/rng.js";
+import { mulberry32, hash32, strToSeed } from "../src/core/rng.js";
 
 function fail(msg) {
   console.error("FAIL: " + msg);
@@ -55,6 +55,23 @@ function fail(msg) {
   }
   const occ = cells.size / 4096;
   if (occ <= 0.70) fail("test 4: occupancy " + occ + " not above 0.70");
+}
+
+// 5. reference values from verified code (12 significant digits)
+{
+  const a = mulberry32(42);
+  const refA = [0.601103751920, 0.448290558998, 0.852465793490, 0.669734041439, 0.174813898746];
+  for (let i = 0; i < 5; i++) {
+    const v = a();
+    if (Math.abs(v - refA[i]) >= 5e-13) fail("test 5: mulberry32(42)[" + i + "] = " + v + " expected " + refA[i]);
+  }
+  const refH = [0.392125141341, 0.367875542957, 0.032725839177, 0.553469189908, 0.487443112535];
+  for (let i = 0; i < 5; i++) {
+    const v = hash32(i);
+    if (Math.abs(v - refH[i]) >= 5e-13) fail("test 5: hash32(" + i + ") = " + v + " expected " + refH[i]);
+  }
+  const s = strToSeed("NEURO-GLYPH-0001");
+  if (s !== 1944663157) fail("test 5: strToSeed = " + s + " expected 1944663157");
 }
 
 console.log("RNG_OK");

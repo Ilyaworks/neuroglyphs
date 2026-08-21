@@ -39,7 +39,7 @@ window.addEventListener("resize", resize);
 let lastTime = performance.now();
 
 function tick(now) {
-  const dt = Math.max((now - lastTime) / 1000, 0);
+  const dt = Math.min(Math.max((now - lastTime) / 1000, 0), 0.1);
   lastTime = now;
   for (const fn of frameFns) fn(dt);
   renderer.render(scene, camera);
