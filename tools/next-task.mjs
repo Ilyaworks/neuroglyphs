@@ -156,6 +156,9 @@ function healthCheck() {
   if (fs.existsSync('src/world/shapeField.js')) {
     checks.push(['слой форм', 'node tools/shapefield-check.mjs']);
   }
+  if (fs.existsSync('src/atmosphere/impossible.js')) {
+    checks.push(['невозможные фигуры', 'node tools/impossible-check.mjs']);
+  }
   if (fs.existsSync('src/player/flycam.js')) {
     checks.push(['полёт камеры', 'node tools/flycam-check.mjs']);
   }

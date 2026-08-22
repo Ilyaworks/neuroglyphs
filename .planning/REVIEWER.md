@@ -59,6 +59,8 @@ cd /c/neuroglyphs && git log --oneline -5 && git status --short && node tools/re
 | `node tools/mood-check.mjs` | палитра доходит до сцены, настроения различимы на кадре | `MOOD_OK` |
 | `node tools/shape-check.mjs` | каталог форм: объём, ядро, кольцо, концентрация (из истории, с N27) | «не проходят проверку 0» |
 | `node tools/shapefield-check.mjs` | слой форм: все 64 значения `shape` дают свою форму, `count` и `extent` доходят до формы | `SHAPEFIELD_OK` |
+| `node tools/catalog-untouched.mjs` | каталог форм совпадает с историей побайтово | `CATALOG_UNTOUCHED_OK` |
+| `node tools/impossible-check.mjs` | невозможные фигуры: швы сходятся из точки привязки, расходятся в пространстве, ломаются при отходе | `IMPOSSIBLE_OK` |
 | `node tools/browser-check.mjs` | страница без ошибок, непустой кадр, fps, скриншот | `PAGE_OK` |
 | `node tools/demo-check.mjs` | собранная демонстрация: летит, осматривает, возвращается без прыжка | `DEMO_OK` |
 
