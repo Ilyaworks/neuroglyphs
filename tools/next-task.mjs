@@ -52,8 +52,12 @@ function created(t) {
   const f = section(t, 'Файлы');
   const i = f.indexOf('создать');
   if (i < 0) return [];
-  const tail = f.slice(i).split(/,\s*правка/)[0];
-  return [...tail.matchAll(/`([^`]+)`/g)].map(m => m[1]).filter(p => /\.(mjs|js|html|json)$/.test(p));
+  // Хвост режется на первом же слове «правка», а не только на «, правка»: N21 писала
+  // «создать `...DEMO-D1.md`, при необходимости правка `src/player/flycam.js`», и живой
+  // путь к существующему файлу попадал в список «созданных».
+  const tail = f.slice(i).split(/правка/)[0];
+  return [...tail.matchAll(/`([^`]+)`/g)].map(m => m[1])
+    .filter(p => /\.(mjs|js|html|json|md)$/.test(p));
 }
 
 function substantial(p) {
@@ -78,8 +82,19 @@ function done(t) {
   // неприменима: судим только по статусу в BACKLOG. Статус later — принято, но
   // привязано к поздней демо-точке, сейчас не выдавать.
   if (t.fix) return status(t) !== 'todo';
+  // BACKLOG — источник правды: его пишет finish-task, и только после гейтов. Эвристика
+  // «файл на месте» остаётся лишь для задач, которых в BACKLOG нет вовсе. Дважды она
+  // закрывала задачу молча: N02 засчиталась по файлу-заглушке, N21 — по живому пути,
+  // попавшему в список создаваемых. Тихий пропуск задачи хуже лишнего прогона.
+  const st = status(t);
+  if (st) return st !== 'todo';
   const files = created(t);
-  return files.length > 0 && files.every(substantial);
+  const guess = files.length > 0 && files.every(substantial);
+  if (guess) {
+    console.log('внимание: ' + t.id + ' считается сделанной по наличию файлов (' +
+      files.join(', ') + '), строки в BACKLOG для неё нет');
+  }
+  return guess;
 }
 
 const skipChecks = process.argv.includes('--skip-checks');
