@@ -147,6 +147,9 @@ function healthCheck() {
       /ShaderPass/.test(fs.readFileSync('src/render/post.js', 'utf8'))) {
     checks.push(['связка постобработки', 'node tools/post-check.mjs']);
   }
+  if (fs.existsSync('src/world/shapeCatalog.js')) {
+    checks.push(['каталог не правили руками', 'node tools/catalog-untouched.mjs']);
+  }
   if (fs.existsSync('src/world/shapeCatalog.js') && fs.existsSync('tools/shape-check.mjs')) {
     checks.push(['каталог форм', 'node tools/shape-check.mjs']);
   }
