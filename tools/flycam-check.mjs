@@ -407,7 +407,26 @@ const MOUSE_PROBE = [
   '    итог.верхПриВзглядеВниз = upOf(camera);',
   '    cam.dispose();',
   '  }',
-  '  // 5. После dispose мышь тоже больше ничего не крутит.',
+  '  // 5. Выход из захвата курсора не должен оставлять камеру в полёте.',
+  '  {',
+  '    lock(true);',
+  '    const { camera, cam } = fresh();',
+  '    key("keydown", "KeyW");',
+  '    for (let i = 0; i < 30; i++) cam.update(DT);',
+  '    const разгон = Math.hypot(camera.position.x, camera.position.y, camera.position.z);',
+  '    lock(false);',
+  '    document.dispatchEvent(new Event("pointerlockchange"));',
+  '    document.body.dispatchEvent(new Event("pointerlockchange", { bubbles: true }));',
+  '    for (let i = 0; i < 60; i++) cam.update(DT);',
+  '    const a = [camera.position.x, camera.position.y, camera.position.z];',
+  '    for (let i = 0; i < 30; i++) cam.update(DT);',
+  '    const b = [camera.position.x, camera.position.y, camera.position.z];',
+  '    итог.ходПослеВыходаИзЗахвата = Math.hypot(b[0]-a[0], b[1]-a[1], b[2]-a[2]);',
+  '    итог.разгонДоВыхода = разгон;',
+  '    key("keyup", "KeyW");',
+  '    cam.dispose();',
+  '  }',
+  '  // 6. После dispose мышь тоже больше ничего не крутит.',
   '  {',
   '    lock(true);',
   '    const { camera, cam } = fresh();',
@@ -442,6 +461,9 @@ if (rm.exceptionDetails) {
       ', верх камеры ' + p3(dm.верхПриВзглядеВверх));
     console.log('наклон вниз: y взгляда по рывкам ' + dm.рядВниз.map(v => v.toFixed(3)).join(' → ') +
       ', верх камеры ' + p3(dm.верхПриВзглядеВниз));
+    console.log('после выхода из захвата курсора: ход ' + dm.ходПослеВыходаИзЗахвата.toFixed(4) +
+      ' (доля от разгона ' + (dm.ходПослеВыходаИзЗахвата / (dm.разгонДоВыхода || 1)).toFixed(4) +
+      '), нужно не больше ' + MAX_SETTLED);
     console.log('поворот мышью после dispose: ' + dm.поворотПослеDispose.toFixed(2) + '°');
 
     if (!(dm.захватЗапрошен > 0)) {
@@ -487,6 +509,12 @@ if (rm.exceptionDetails) {
           break;
         }
       }
+    }
+    if (!(dm.ходПослеВыходаИзЗахвата / (dm.разгонДоВыхода || 1) <= MAX_SETTLED)) {
+      problems.push('выход из захвата курсора уносит камеру: с зажатой W после того, как ' +
+        'курсор освободился (это делает Escape), она прошла ещё ' +
+        dm.ходПослеВыходаИзЗахвата.toFixed(2) + '. Мышь уже не управляет, а клавиша несёт — ' +
+        'то же залипание, что и при потере фокуса окна. Слушай pointerlockchange.');
     }
     if (!(dm.поворотПослеDispose <= MAX_LOCKLESS_TURN_DEG)) {
       problems.push('dispose не снял слушатель мыши: после него взгляд повернулся на ' +

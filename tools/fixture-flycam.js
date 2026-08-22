@@ -32,6 +32,9 @@ export function createFlyCam(camera, dom) {
   const onKeyUp = (e) => { if (KEYS[e.code]) held.delete(e.code); };
   // Потеря фокуса окна: клавиши «залипают» нажатыми, и камера уезжает сама.
   const onBlur = () => held.clear();
+  // Выход из захвата курсора (Escape) — тот же случай: мышь уже не управляет, а
+  // зажатая клавиша продолжает нести камеру.
+  const onLockChange = () => { if (document.pointerLockElement !== dom) held.clear(); };
   const onMouseDown = () => { dom?.requestPointerLock?.(); };
   const onMouseMove = (e) => {
     if (document.pointerLockElement !== dom) return;
@@ -44,6 +47,7 @@ export function createFlyCam(camera, dom) {
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
   document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('pointerlockchange', onLockChange);
   if (dom && dom.addEventListener) dom.addEventListener('mousedown', onMouseDown);
 
   function update(dt) {
@@ -79,6 +83,7 @@ export function createFlyCam(camera, dom) {
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('pointerlockchange', onLockChange);
     if (dom && dom.removeEventListener) dom.removeEventListener('mousedown', onMouseDown);
     held.clear();
     velocity.set(0, 0, 0);
