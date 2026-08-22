@@ -803,10 +803,15 @@ rim, accent }`.
 ```
 git show 3bbd249:src/world/shapeCatalog.js > src/world/shapeCatalog.js
 git show 3bbd249:src/world/legacyShapes.js > src/world/legacyShapes.js
+git show 3bbd249:src/world/shapePatch.js > src/world/shapePatch.js
 git show 3bbd249:src/world/allShapes.js > src/world/allShapes.js
 git show 3bbd249:tools/shape-check.mjs > tools/shape-check.mjs
 git show 3bbd249:tools/pick-dense-shapes.mjs > tools/pick-dense-shapes.mjs
 ```
+
+`shapePatch.js` в списке не случайно: `shapeCatalog.js` начинается с `import { PATCH } from
+'./shapePatch.js'`, и без этого файла каталог не импортируется вовсе — `shape-check` падает
+на первой строке. В прошлой версии этой задачи файла в списке не было.
 
 Затем `shapeField.js` — тонкий слой над каталогом. Подпись задана гейтом, придумывать свою
 не надо:
@@ -827,15 +832,22 @@ export function buildShapeField(fields, opts = {}) → { fill(i, out), count, ke
 - `key` — имя формы из каталога. Нужно, чтобы гейт видел, что формы правда разные, а не
   одна, вызванная 64 раза, и что имена — из каталога, а не свои.
 
-Формы каталога имеют подпись `(i, params, out)`. Каталог руками не править: 64 формы
-отобраны и замерены. В нём восемь «светил с кольцом и пустотой между ними»
-(`accretionHalo` 5.41×, `stellarCorona` 4.30×, `glyphCoreRing` 2.62×, `spiralBulge` 1.97×,
-`ringedStar` 1.90×, `glyphNucleus` 1.51×, `globularBloom` 1.46×, `ringNebula` 1.43×)
-и двенадцать форм с честно пустой серединой.
+Формы каталога имеют подпись `(i, params, out)`. Каталог руками не править.
 
-**Проверка:** `node tools/shape-check.mjs` — не меньше восьми форм с провалом ≥ 1.30,
-строка «не проходят проверку» показывает `0`, плюс
-`node tools/shapefield-check.mjs` — печатает `SHAPEFIELD_OK`.
+Что в нём на самом деле — замерено прогоном `shape-check` на восстановленных файлах, а не
+взято из памяти: **44 формы**, все проходят барьер («не проходят проверку: 0»), семнадцать
+из них семейства «ядро плюс кольцо», и **ни одной** формы с провалом ≥ 1.3. В прошлой версии
+этого текста стояло «64 формы» и список из восьми светил с числами — четырёх из тех имён
+(`glyphCoreRing`, `spiralBulge`, `glyphNucleus`, `ringNebula`) в коммите нет вообще. Ничего
+не выдумывай и не дописывай в каталог, чтобы эти числа сошлись: расхождение известно, оно
+закрывается отдельной задачей, а не здесь.
+
+Поле `shape` шестибитное — 64 значения на 44 формы, поэтому какие-то формы достаются двум
+значениям сида. Это нормально и гейтом разрешено.
+
+**Проверка:** `node tools/shape-check.mjs` — строка «не проходят проверку» показывает `0`
+(признак «светило с провалом ≥1.3» сейчас не выполняется ни одной формой — это не твоя
+задача), плюс `node tools/shapefield-check.mjs` — печатает `SHAPEFIELD_OK`.
 
 Второй гейт нужен потому, что первый мерит **каталог**, а не слой: про `shapeField.js` он
 не знает ничего, и слой закрылся бы ровно так, как закрывалась неработающая `N09` — модуль,
