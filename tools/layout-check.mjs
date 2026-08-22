@@ -36,6 +36,20 @@ const EXTENT_DRIFT_MAX = 0.15;
 // размером может случайно попасть в допуск на обоих значениях. Поэтому отдельно
 // требуем, чтобы габарит следил за заказом — при удвоении extent он обязан удвоиться.
 const TRACK_BAND = [1.5, 2.5];
+// Порядок раскладок в LAYOUTS из index.js — это отображение поля `structure` сида в
+// форму мира, таблица ID лежит в N14. Порядок здесь дублируется намеренно: если он
+// разъедется с планом, сид начнёт выбирать не тот мир, и заметить это по картинке
+// почти невозможно. Проверяется только когда index.js уже существует.
+const EXPECTED_ORDER = [
+  'layoutFractalCorridors',
+  'layoutNonEuclidean',
+  'layoutCrystalline',
+  'layoutOrganic',
+  'layoutGeometric',
+  'layoutAlmostReal',
+  'layoutVoid',
+  'layoutCrossedWorlds',
+];
 // Сидов несколько не для красоты: у раскладки с ветвящимся деревом отклонение зависит
 // от формы дерева, и на одном сиде проверка проходила, пока каждый шестой сид выходил
 // за допуск. Требуем допуск на всех сидах и печатаем худший.
@@ -130,6 +144,7 @@ function signature(res) {
 }
 
 const positionHashes = new Map();
+const seenFns = new Set();
 const extentRows = [];
 const driftRows = [];
 
@@ -144,10 +159,44 @@ for (const file of files) {
   }
 
   const mod = await import(pathToFileURL(path.resolve(rel)).href);
+
+  // index.js отдаёт массив LAYOUTS, а не функции. Порядок в нём — это отображение
+  // поля structure сида в форму мира, поэтому сверяем с таблицей ID из N14.
+  const arrays = Object.entries(mod).filter(([, v]) => Array.isArray(v));
+  for (const [arrName, arr] of arrays) {
+    console.log(rel + ': массив ' + arrName + ' из ' + arr.length + ' элементов');
+    const notFn = arr.filter(v => typeof v !== 'function').length;
+    if (notFn) problems.push(rel + ': в ' + arrName + ' не функций: ' + notFn);
+    const uniq = new Set(arr);
+    if (uniq.size !== arr.length) {
+      problems.push(rel + ': в ' + arrName + ' повторяются раскладки — ' + arr.length +
+        ' элементов, различных ' + uniq.size + '. Один и тот же ID сида будет давать ' +
+        'два разных мира одной формы.');
+    }
+    if (arrName === 'LAYOUTS') {
+      if (arr.length !== EXPECTED_ORDER.length) {
+        problems.push(rel + ': LAYOUTS длиной ' + arr.length + ', ожидалось ' +
+          EXPECTED_ORDER.length + ' — по одной раскладке на значение поля structure сида');
+      }
+      arr.forEach((fn, i) => {
+        const want = EXPECTED_ORDER[i];
+        if (want && typeof fn === 'function' && fn.name !== want) {
+          problems.push(rel + ': LAYOUTS[' + i + '] это ' + (fn.name || 'безымянная функция') +
+            ', а по таблице ID из N14 там должна быть ' + want +
+            '. Сид выберет не ту форму мира.');
+        }
+      });
+    }
+  }
+
   const fns = Object.entries(mod).filter(([, v]) => typeof v === 'function');
-  if (!fns.length) problems.push(rel + ': нет экспортированных функций');
+  if (!fns.length && !arrays.length) problems.push(rel + ': нет экспортированных функций');
 
   for (const [name, fn] of fns) {
+    // Одна и та же функция может прийти из своего модуля и из реэкспорта в index.js —
+    // мерить её дважды незачем, а по хешу позиций она иначе выглядит как дубль.
+    if (seenFns.has(fn)) continue;
+    seenFns.add(fn);
     for (const target of TARGETS) {
       let res;
       const offs = [];
