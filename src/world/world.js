@@ -55,7 +55,7 @@ export function createWorld(seedCode) {
     starPos[i * 3 + 1] = (v / len) * STAR_RADIUS;
     starPos[i * 3 + 2] = (w / len) * STAR_RADIUS;
     starGlyph[i] = Math.floor(rng() * 128);
-    starSize[i] = 1 + rng() * 3;
+    starSize[i] = 6 + rng() * 12;
     starOff[i] = rng();
   }
   const starGeo = new THREE.BufferGeometry();
@@ -64,7 +64,9 @@ export function createWorld(seedCode) {
   starGeo.setAttribute("size", new THREE.BufferAttribute(starSize, 1));
   starGeo.setAttribute("offset", new THREE.BufferAttribute(starOff, 1));
   starGeo.computeBoundingSphere();
-  const { material: starMat } = buildFieldMaterial(atlas);
+  const { material: starMat } = buildFieldMaterial(atlas, { fogDensity: 0 });
+  starMat.uniforms.uPulse = uniforms.uPulse;
+  starMat.uniforms.uTime = uniforms.uTime;
   const stars = new THREE.Points(starGeo, starMat);
   group.add(stars);
 

@@ -11,12 +11,14 @@ const VERTEX_SHADER = /* glsl */ `
 
   varying vec3 vColor;
   varying float vGlyph;
+  varying float vDepth;
 
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     float computed = size * (1.0 + 0.5 * uPulse) * (300.0 / -mvPosition.z);
     gl_PointSize = min(computed, 64.0);
     gl_Position = projectionMatrix * mvPosition;
+    vDepth = -mvPosition.z;
     vGlyph = glyph;
     vColor = uSpectrum[int(mod(offset * 4.0, 4.0))];
   }
@@ -26,10 +28,12 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform sampler2D uAtlas;
   uniform float uPulse;
   uniform float uTime;
+  uniform float uFogDensity;
   uniform vec3 uSpectrum[4];
 
   varying vec3 vColor;
   varying float vGlyph;
+  varying float vDepth;
 
   void main() {
     float g = mod(vGlyph, 128.0);
@@ -43,7 +47,8 @@ const FRAGMENT_SHADER = /* glsl */ `
     vec2 uv = vec2(mix(u0, u1, gl_PointCoord.x), mix(v1, v0, gl_PointCoord.y));
     vec4 texel = texture2D(uAtlas, uv);
     if (texel.a < 0.01) discard;
-    gl_FragColor = vec4(vColor * (0.8 + 0.4 * uPulse), texel.a);
+    float f = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
+    gl_FragColor = vec4(vColor * (0.8 + 0.4 * uPulse) * (1.0 - f), texel.a);
   }
 `;
 
@@ -52,6 +57,7 @@ export function buildFieldMaterial(atlas, opts = {}) {
     uAtlas: { value: atlas.texture },
     uPulse: { value: 0 },
     uTime: { value: 0 },
+    uFogDensity: { value: opts.fogDensity ?? 0.0011 },
     uSpectrum: {
       value: [
         new THREE.Color(0x00ffff),
