@@ -171,6 +171,7 @@ if (KINDS.length < MIN_KINDS) {
 
 let checked = 0;
 const byKind = new Map();
+const sizes = new Map();
 for (const kind of KINDS) {
   let fig;
   try {
@@ -189,6 +190,7 @@ for (const kind of KINDS) {
     bad('вид ' + kind + ': попросили ' + PROBE_COUNT + ' точек, отдано count=' + fig.count);
   }
   byKind.set(kind, c.hash);
+  sizes.set(kind, c.size);
   if (fig.kind !== undefined && fig.kind !== kind) {
     bad('попросили вид ' + kind + ', а вернулся ' + fig.kind + ': список IMPOSSIBLE_KINDS ' +
       'обещает виды, которых модуль не строит.');
@@ -286,6 +288,30 @@ for (const kind of KINDS) {
 }
 
 if (!checked) bad('ни один вид фигуры не удалось проверить');
+
+// Один и тот же extent обязан давать фигуры сопоставимого размера. Иначе «габарит 200»
+// значит для каждого вида своё: на первом прогоне N64 треугольник занимал 357 единиц,
+// лестница 331, а вилка 146 — в мире это объект вдвое меньше при том же запросе, и разрыв
+// шва при отходе у неё выходил 11.6 пикселя против 126.5 у треугольника, то есть иллюзия
+// почти не ломалась. Порог по разбросу, а не по абсолютному размеру: на эталоне разброс
+// 1.08, запас до двойки почти двукратный.
+const SIZE_SPREAD_MAX = 2.0;
+if (sizes.size > 1) {
+  const vals = [...sizes.values()];
+  const spread = Math.max(...vals) / Math.min(...vals);
+  const big = [...sizes.entries()].reduce((w, e) => (e[1] > w[1] ? e : w));
+  const small = [...sizes.entries()].reduce((w, e) => (e[1] < w[1] ? e : w));
+  console.log('разброс размеров при одном extent: ' + spread.toFixed(2) + ' (нужно не больше ' +
+    SIZE_SPREAD_MAX + '), крупнее всех ' + big[0] + ' ' + big[1].toFixed(0) +
+    ', мельче всех ' + small[0] + ' ' + small[1].toFixed(0));
+  if (spread > SIZE_SPREAD_MAX) {
+    bad('при одном и том же extent виды получаются разного размера: ' + big[0] + ' занимает ' +
+      big[1].toFixed(0) + ', а ' + small[0] + ' всего ' + small[1].toFixed(0) + ', разброс ' +
+      spread.toFixed(2) + ' при допуске ' + SIZE_SPREAD_MAX + '. Мелкая фигура и ломается ' +
+      'слабее: разрыв шва при отходе у неё в пикселях кратно меньше, и на кадре иллюзия ' +
+      'продолжает выглядеть целой.');
+  }
+}
 
 // Виды обязаны отличаться друг от друга. Иначе список из трёх имён — это одна фигура,
 // построенная трижды: каждый вид по отдельности проходит все замеры, и без этой сверки
