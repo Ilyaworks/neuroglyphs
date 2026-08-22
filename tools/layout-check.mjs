@@ -30,7 +30,18 @@ const TOLERANCE = 0.30;
 // значение по умолчанию. Два требования: раскладка слушается extent, и размер не зависит
 // от плотности — цель меняет число точек, а не габарит.
 const EXTENTS = [200, 400];
-const EXTENT_BAND = [0.6, 1.5];
+// Полоса намеренно широкая. Её задача — поймать грубое: раскладку, которая параметр
+// игнорирует (было 0.17) или расползается вдвое за заказ (было 1.9). Тонкую настройку
+// ловит не она, а проверка слежения ниже: удвоил extent — обязан удвоиться габарит.
+// Замер на 200 сидах: минимум по всем восьми раскладкам 0.544, поэтому 0.45 даёт запас,
+// а не проходит по краю.
+const EXTENT_BAND = [0.45, 1.7];
+// Медиана держится в узкой полосе. Разделение нужно вот зачем: широкая полоса по худшему
+// сиду ловит грубое (игнор параметра давал 0.17, расползание — 1.9), но пропускает ошибку
+// соглашения «extent это сторона куба, а не радиус» — она даёт ровно 0.50 на всех сидах.
+// Медиана по 24 сидам стабильна: замерено 0.68..1.00 у восьми раскладок, так что 0.6
+// оставляет запас и при этом 0.50 отсекает.
+const EXTENT_MEDIAN_BAND = [0.6, 1.4];
 const EXTENT_DRIFT_MAX = 0.15;
 // Попадание в полосу ещё не значит, что extent слушают: раскладка с фиксированным
 // размером может случайно попасть в допуск на обоих значениях. Поэтому отдельно
@@ -285,17 +296,32 @@ for (const file of files) {
       }
 
       if (target === TARGETS[TARGETS.length - 1]) {
-        // Слушается ли extent.
+        // Слушается ли extent. Мерим на всех сидах: у раскладки со случайной формой
+        // доля заказанного объёма от сида зависит, и на одном сиде проверка проходила,
+        // пока почти половина сидов уходила за полосу.
         for (const extent of EXTENTS) {
-          const r = fn(rngMod.mulberry32(SEEDS[0]), { target, extent });
-          const half = halfSpan(r);
-          const ratio = half / extent;
-          extentRows.push({ name, extent, half, ratio });
-          if (ratio < EXTENT_BAND[0] || ratio > EXTENT_BAND[1]) {
-            problems.push(name + ': при extent ' + extent + ' габарит вышел ' + half.toFixed(0) +
-              ' от центра, это ' + ratio.toFixed(2) + ' от заказанного при допустимой полосе ' +
-              EXTENT_BAND[0] + '..' + EXTENT_BAND[1] + '. Поле в мире радиусом 400, и раскладка ' +
-              'обязана слушаться extent, иначе сборка не сможет попросить у неё нужный объём.');
+          const ratios = SEEDS.map(seed => {
+            const half = halfSpan(fn(rngMod.mulberry32(seed), { target, extent }));
+            return { seed, half, ratio: half / extent };
+          });
+          const sortedR = ratios.slice().sort((x, y) => x.ratio - y.ratio);
+          const lowest = sortedR[0];
+          const highest = sortedR[sortedR.length - 1];
+          const mid = sortedR[Math.floor(sortedR.length / 2)];
+          extentRows.push({ name, extent, half: mid.half, ratio: mid.ratio, lowest, highest });
+          if (mid.ratio < EXTENT_MEDIAN_BAND[0] || mid.ratio > EXTENT_MEDIAN_BAND[1]) {
+            problems.push(name + ': при extent ' + extent + ' медианная доля заказанного объёма ' +
+              mid.ratio.toFixed(2) + ', полоса для медианы ' + EXTENT_MEDIAN_BAND[0] + '..' +
+              EXTENT_MEDIAN_BAND[1] + '. Ровно 0.5 обычно значит, что extent приняли за сторону ' +
+              'куба, а не за радиус: сторона вдвое больше радиуса.');
+          }
+          const bad = ratios.filter(r => r.ratio < EXTENT_BAND[0] || r.ratio > EXTENT_BAND[1]);
+          if (bad.length) {
+            problems.push(name + ': при extent ' + extent + ' доля заказанного объёма вышла ' +
+              'за полосу ' + EXTENT_BAND[0] + '..' + EXTENT_BAND[1] + ' на ' + bad.length +
+              ' сидах из ' + ratios.length + '; крайние — сид ' + lowest.seed + ' дал ' +
+              lowest.ratio.toFixed(2) + ', сид ' + highest.seed + ' дал ' + highest.ratio.toFixed(2) +
+              '. Раскладка обязана держать заказанный объём на любом сиде.');
           }
         }
         // Следит ли габарит за заказанным размером, а не просто попал в полосу.
@@ -368,8 +394,9 @@ for (const r of rows) {
 
 for (const r of extentRows) {
   console.log(r.name.padEnd(24) + ' extent ' + String(r.extent).padStart(4) +
-    ' -> габарит ' + r.half.toFixed(0).padStart(5) + ' от центра, это ' + r.ratio.toFixed(2) +
-    ' от заказанного (полоса ' + EXTENT_BAND[0] + '..' + EXTENT_BAND[1] + ')');
+    ' -> габарит ' + r.half.toFixed(0).padStart(5) + ', доля заказанного: медиана ' +
+    r.ratio.toFixed(2) + ', от ' + r.lowest.ratio.toFixed(2) + ' до ' + r.highest.ratio.toFixed(2) +
+    ' по сидам (полоса ' + EXTENT_BAND[0] + '..' + EXTENT_BAND[1] + ')');
 }
 for (const r of driftRows) {
   console.log(r.name.padEnd(24) + ' габарит по целям ' + r.spans.map(v => v.toFixed(0)).join('/') +
