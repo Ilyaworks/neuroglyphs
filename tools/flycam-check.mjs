@@ -42,6 +42,17 @@ const MAX_CTRL_GAIN = 0.8;     // Ctrl обязан замедлять хотя 
 const MAX_FIRST_FRAME = 0.6;   // первый кадр разгона короче установившегося — это и есть плавность
 const MAX_SETTLED = 0.02;      // остаточный ход после отпускания и после blur, доля от разгона
 const MIN_SPEED_GAIN = 2.0;    // setSpeed(x4) обязан заметно удлинить путь
+// Мышь. Первая версия гейта её не проверяла, и N19 закрылась вообще без взгляда:
+// модуль не трогал ни mousemove, ни pointer lock, аргумент dom лежал без дела.
+const MIN_TURN_DEG = 20;       // рывок мыши на 400 пикселей обязан повернуть взгляд
+const MIN_VIEW_ALIGN = 0.9;    // W обязан вести туда, куда смотрит камера
+// Наклон: важно не «как близко к вертикали», а «не перевернулась ли камера». Первая
+// версия порога мерила близость (0.999) и заваливала эталон, который честно упирается
+// в 0.57° от вертикали. Мерим переворот: верх камеры обязан смотреть вверх, а взгляд
+// при повторных рывках вверх не должен поехать обратно вниз.
+const MIN_UP_Y = 0.001;        // верх камеры смотрит вверх — камера не перевёрнута
+const PITCH_WRAP_TOL = 0.01;   // допуск на «взгляд поехал обратно» при рывках в ту же сторону
+const MAX_LOCKLESS_TURN_DEG = 1; // без захвата курсора мышь не поворачивает ничего
 
 if (!fs.existsSync(LOCAL)) {
   console.error(LOCAL + ' не найден');
@@ -300,6 +311,188 @@ if (!(d.ходПослеDispose <= 0.001)) {
 if (!(d.путьБыстро / (d.путьВперёд || 1) >= MIN_SPEED_GAIN)) {
   problems.push('setSpeed не влияет на скорость: путь ' + d.путьБыстро.toFixed(2) +
     ' против обычного ' + d.путьВперёд.toFixed(2));
+}
+
+// ---- мышь: захват курсора, поворот взгляда, движение по взгляду ----------------
+const MOUSE_PROBE = [
+  '(async () => {',
+  '  const THREE = await import("three");',
+  '  const mod = await import(' + JSON.stringify(MOD) + ');',
+  '  const DT = 1 / 60;',
+  '  const key = (type, code) => document.body.dispatchEvent(',
+  '    new KeyboardEvent(type, { code, key: code, bubbles: true, cancelable: true }));',
+  '  const move = (dx, dy) => {',
+  '    for (const type of ["mousemove", "pointermove"]) {',
+  '      document.body.dispatchEvent(new MouseEvent(type, {',
+  '        bubbles: true, cancelable: true, movementX: dx, movementY: dy,',
+  '      }));',
+  '    }',
+  '  };',
+  '  const press = () => {',
+  '    for (const type of ["pointerdown", "mousedown", "click"]) {',
+  '      document.body.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));',
+  '    }',
+  '  };',
+  '  const fwd = (c) => { const v = new THREE.Vector3(); c.getWorldDirection(v); return [v.x, v.y, v.z]; };',
+  '  const angle = (a, b) => {',
+  '    const d = a[0]*b[0] + a[1]*b[1] + a[2]*b[2];',
+  '    const la = Math.hypot(a[0],a[1],a[2]) || 1, lb = Math.hypot(b[0],b[1],b[2]) || 1;',
+  '    return Math.acos(Math.max(-1, Math.min(1, d / (la * lb)))) * 180 / Math.PI;',
+  '  };',
+  '  function fresh() {',
+  '    const camera = new THREE.PerspectiveCamera(70, 1.5, 0.1, 5000);',
+  '    camera.position.set(0, 0, 0);',
+  '    const cam = mod.createFlyCam(camera, document.body);',
+  '    return { camera, cam };',
+  '  }',
+  '  const lock = (on) => {',
+  '    if (on) Object.defineProperty(document, "pointerLockElement", { get: () => document.body, configurable: true });',
+  '    else { try { delete document.pointerLockElement; } catch (e) {} }',
+  '  };',
+  '  const итог = {};',
+  '  // 1. Захват курсора обязан запрашиваться нажатием.',
+  '  {',
+  '    const было = document.body.requestPointerLock;',
+  '    let звали = 0;',
+  '    document.body.requestPointerLock = function () { звали++; };',
+  '    const { cam } = fresh();',
+  '    press();',
+  '    итог.захватЗапрошен = звали;',
+  '    cam.dispose();',
+  '    document.body.requestPointerLock = было;',
+  '  }',
+  '  // 2. Без захвата мышь не должна ничего вращать.',
+  '  {',
+  '    lock(false);',
+  '    const { camera, cam } = fresh();',
+  '    const до = fwd(camera);',
+  '    move(400, 0);',
+  '    cam.update(DT);',
+  '    итог.поворотБезЗахвата = angle(до, fwd(camera));',
+  '    cam.dispose();',
+  '  }',
+  '  // 3. С захватом: рывок вправо поворачивает взгляд вправо, и W ведёт по взгляду.',
+  '  {',
+  '    lock(true);',
+  '    const { camera, cam } = fresh();',
+  '    const до = fwd(camera);',
+  '    move(400, 0);',
+  '    cam.update(DT);',
+  '    const после = fwd(camera);',
+  '    итог.поворотМышью = angle(до, после);',
+  '    итог.взглядПослеПоворота = после;',
+  '    const старт = [camera.position.x, camera.position.y, camera.position.z];',
+  '    key("keydown", "KeyW");',
+  '    for (let i = 0; i < 30; i++) cam.update(DT);',
+  '    key("keyup", "KeyW");',
+  '    const шаг = [camera.position.x - старт[0], camera.position.y - старт[1], camera.position.z - старт[2]];',
+  '    const взгляд = fwd(camera);',
+  '    const l = Math.hypot(шаг[0], шаг[1], шаг[2]) || 1;',
+  '    итог.путьПоВзгляду = (шаг[0]*взгляд[0] + шаг[1]*взгляд[1] + шаг[2]*взгляд[2]) / l;',
+  '    итог.смещениеПослеПоворота = шаг;',
+  '    cam.dispose();',
+  '  }',
+  '  // 4. Наклон: камера не переворачивается и взгляд не уезжает обратно.',
+  '  {',
+  '    lock(true);',
+  '    const { camera, cam } = fresh();',
+  '    const upOf = (c) => { const v = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion); return [v.x, v.y, v.z]; };',
+  '    итог.рядВверх = [];',
+  '    for (let i = 0; i < 5; i++) { move(0, -4000); cam.update(DT); итог.рядВверх.push(fwd(camera)[1]); }',
+  '    итог.взглядВверх = fwd(camera);',
+  '    итог.верхПриВзглядеВверх = upOf(camera);',
+  '    итог.рядВниз = [];',
+  '    for (let i = 0; i < 10; i++) { move(0, 4000); cam.update(DT); итог.рядВниз.push(fwd(camera)[1]); }',
+  '    итог.взглядВниз = fwd(camera);',
+  '    итог.верхПриВзглядеВниз = upOf(camera);',
+  '    cam.dispose();',
+  '  }',
+  '  // 5. После dispose мышь тоже больше ничего не крутит.',
+  '  {',
+  '    lock(true);',
+  '    const { camera, cam } = fresh();',
+  '    cam.dispose();',
+  '    const до = fwd(camera);',
+  '    move(400, 0);',
+  '    cam.update(DT);',
+  '    итог.поворотПослеDispose = angle(до, fwd(camera));',
+  '  }',
+  '  lock(false);',
+  '  return JSON.stringify(итог);',
+  '})()',
+].join(NL);
+
+const rm = await send('Runtime.evaluate', { expression: MOUSE_PROBE, returnByValue: true, awaitPromise: true });
+if (rm.exceptionDetails) {
+  problems.push('проба мыши упала: ' +
+    (rm.exceptionDetails.exception?.description || rm.exceptionDetails.text));
+} else {
+  let dm;
+  try { dm = JSON.parse(rm.result.value); } catch (e) { dm = null; }
+  if (!dm) problems.push('проба мыши вернула не JSON');
+  else {
+    console.log('захват курсора запрошен нажатием: ' + dm.захватЗапрошен + ' раз');
+    console.log('поворот мышью без захвата: ' + dm.поворотБезЗахвата.toFixed(2) +
+      '°, нужно не больше ' + MAX_LOCKLESS_TURN_DEG);
+    console.log('поворот мышью с захватом на 400 пикселей: ' + dm.поворотМышью.toFixed(2) +
+      '°, нужно не меньше ' + MIN_TURN_DEG + ' | взгляд ' + p3(dm.взглядПослеПоворота));
+    console.log('W после поворота идёт по взгляду: ' + dm.путьПоВзгляду.toFixed(3) +
+      ', нужно не меньше ' + MIN_VIEW_ALIGN + ' | смещение ' + p3(dm.смещениеПослеПоворота));
+    console.log('наклон вверх: y взгляда по рывкам ' + dm.рядВверх.map(v => v.toFixed(3)).join(' → ') +
+      ', верх камеры ' + p3(dm.верхПриВзглядеВверх));
+    console.log('наклон вниз: y взгляда по рывкам ' + dm.рядВниз.map(v => v.toFixed(3)).join(' → ') +
+      ', верх камеры ' + p3(dm.верхПриВзглядеВниз));
+    console.log('поворот мышью после dispose: ' + dm.поворотПослеDispose.toFixed(2) + '°');
+
+    if (!(dm.захватЗапрошен > 0)) {
+      problems.push('нажатие мышью не запрашивает захват курсора: dom.requestPointerLock не позван ' +
+        'ни на pointerdown, ни на mousedown, ни на click. Задача просит мышь через pointer lock.');
+    }
+    if (!(dm.поворотМышью >= MIN_TURN_DEG)) {
+      problems.push('мышь не поворачивает взгляд: рывок на 400 пикселей при захваченном курсоре ' +
+        'дал ' + dm.поворотМышью.toFixed(2) + '° при пороге ' + MIN_TURN_DEG +
+        '°. Без взгляда полёт — это движение по рельсам.');
+    } else if (!(dm.взглядПослеПоворота[0] > 0)) {
+      problems.push('рывок мыши вправо повернул взгляд не вправо: камера смотрела в −Z, ' +
+        'после поворота x взгляда равен ' + dm.взглядПослеПоворота[0].toFixed(3) + ', ожидалось больше нуля');
+    }
+    if (!(dm.поворотБезЗахвата <= MAX_LOCKLESS_TURN_DEG)) {
+      problems.push('мышь крутит камеру без захвата курсора: поворот ' +
+        dm.поворотБезЗахвата.toFixed(2) + '° при пороге ' + MAX_LOCKLESS_TURN_DEG +
+        '°. Пока курсор не захвачен, движения мыши — это работа с окном, а не с камерой.');
+    }
+    if (!(dm.путьПоВзгляду >= MIN_VIEW_ALIGN)) {
+      problems.push('движение идёт не туда, куда смотрит камера: совпадение ' +
+        dm.путьПоВзгляду.toFixed(3) + ' при пороге ' + MIN_VIEW_ALIGN +
+        '. Обычно это неверный базис из кватерниона: множители 2 в столбцах матрицы поворота.');
+    }
+    for (const [имя, взгляд, верх, ряд, знак] of [
+      ['вверх', dm.взглядВверх, dm.верхПриВзглядеВверх, dm.рядВверх, 1],
+      ['вниз', dm.взглядВниз, dm.верхПриВзглядеВниз, dm.рядВниз, -1],
+    ]) {
+      if (!взгляд.every(Number.isFinite) || !верх.every(Number.isFinite)) {
+        problems.push('при наклоне ' + имя + ' в векторах камеры не числа: взгляд ' + p3(взгляд));
+        continue;
+      }
+      if (!(верх[1] >= MIN_UP_Y)) {
+        problems.push('камера перевернулась при наклоне ' + имя + ': верх камеры смотрит в ' +
+          p3(верх) + '. Наклон нужно ограничивать, не давая взгляду перевалить через вертикаль.');
+      }
+      // Рывки в одну сторону не могут разворачивать взгляд обратно: так проявляется
+      // перевал через вертикаль у неограниченного наклона.
+      for (let i = 1; i < ряд.length; i++) {
+        if ((ряд[i] - ряд[i - 1]) * знак < -PITCH_WRAP_TOL) {
+          problems.push('наклон ' + имя + ' перевалил через вертикаль: y взгляда пошёл обратно (' +
+            ряд[i - 1].toFixed(3) + ' → ' + ряд[i].toFixed(3) + ') при рывках в одну сторону');
+          break;
+        }
+      }
+    }
+    if (!(dm.поворотПослеDispose <= MAX_LOCKLESS_TURN_DEG)) {
+      problems.push('dispose не снял слушатель мыши: после него взгляд повернулся на ' +
+        dm.поворотПослеDispose.toFixed(2) + '°');
+    }
+  }
 }
 
 bye(problems.length === 0, problems);
