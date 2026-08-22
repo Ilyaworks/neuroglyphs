@@ -222,29 +222,39 @@ if (!a.search.toLowerCase().includes(SEED.toLowerCase())) {
     '. Правильный код обязан использоваться как есть, а не подменяться новым.');
 }
 
-// Туман: обнуляем плотность и смотрим, изменился ли кадр.
-const withFog = await evalJson(FRAME_STATS);
-const fogInfo = await evalJson([
+// Туман: сначала ставим плотность в замерное значение, потом обнуляем и смотрим,
+// изменился ли кадр. Замерное значение нужно потому, что плотность приходит из палитры
+// настроения: у `void` она 0.0003, и на стенде 1200 туман закрывает всего 12% — прирост
+// выходит около 1.12 при пороге 1.15, то есть гейт падал бы на честной палитре. А
+// проверяет он не «густо ли в этом мире», а «пользуется ли шейдер каналом тумана
+// вообще». 0.0011 — плотность, что стояла в сцене до появления палитр.
+const FOG_TEST_DENSITY = 0.0011;
+const setFog = (value) => evalJson([
   '(() => {',
   '  const names = [];',
   '  let touched = 0;',
   '  window.__ng_boot.scene.traverse(o => {',
   '    if (!o.isPoints || !o.material || !o.material.uniforms) return;',
   '    for (const k of Object.keys(o.material.uniforms)) {',
-  '      if (/fog/i.test(k)) {',
-  '        names.push(k);',
-  '        const u = o.material.uniforms[k];',
-  '        if (typeof u.value === "number") { u.value = 0; touched++; }',
-  '      }',
+  '      if (!/fog/i.test(k)) continue;',
+  '      names.push(k);',
+  '      const u = o.material.uniforms[k];',
+  '      if (typeof u.value === "number") { u.value = VALUE; touched++; }',
   '    }',
   '  });',
   '  return JSON.stringify({ names: [...new Set(names)], touched });',
   '})()',
-].join('\n'));
+].join(NLC).replace('VALUE', String(value)));
+
+const fogInfoTest = await setFog(FOG_TEST_DENSITY);
+const withFog = await evalJson(FRAME_STATS);
+const fogInfo = await setFog(0);
 const withoutFog = await evalJson(FRAME_STATS);
 
 console.log('uniform-ы тумана в материалах: ' +
-  ((fogInfo.names && fogInfo.names.length) ? fogInfo.names.join(', ') : 'нет'));
+  ((fogInfo.names && fogInfo.names.length) ? fogInfo.names.join(', ') : 'нет') +
+  ', замер на плотности ' + FOG_TEST_DENSITY + ' (значений проставлено: ' +
+  (fogInfoTest.touched || 0) + ')');
 if (withFog.lit !== undefined && withoutFog.lit !== undefined) {
   console.log('кадр с туманом: светится ' + withFog.lit + ' пикселей, средняя яркость ' +
     withFog.mean.toFixed(3));
