@@ -58,7 +58,7 @@ cd /c/neuroglyphs && git log --oneline -5 && git status --short && node tools/re
 | `node tools/world-check.mjs` | тот же сид = тот же мир, глубина читается, каждое облако видно | `WORLD_OK` |
 | `node tools/mood-check.mjs` | палитра доходит до сцены, настроения различимы на кадре | `MOOD_OK` |
 | `node tools/shape-check.mjs` | каталог форм: объём, ядро, кольцо, концентрация (из истории, с N27) | «не проходят проверку 0» |
-| `node tools/shapefield-check.mjs` | слой форм: 64 формы разные, `count` и `extent` доходят до формы | `SHAPEFIELD_OK` |
+| `node tools/shapefield-check.mjs` | слой форм: все 64 значения `shape` дают свою форму, `count` и `extent` доходят до формы | `SHAPEFIELD_OK` |
 | `node tools/browser-check.mjs` | страница без ошибок, непустой кадр, fps, скриншот | `PAGE_OK` |
 | `node tools/demo-check.mjs` | собранная демонстрация: летит, осматривает, возвращается без прыжка | `DEMO_OK` |
 
