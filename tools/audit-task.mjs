@@ -54,7 +54,8 @@ for (const f of changed) {
   const src = fs.readFileSync(f, 'utf8');
   const lines = src.split(/\r?\n/).length;
 
-  if (/Math\.random\s*\(/.test(src)) {
+  const codeSrc = src.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  if (/Math\.random\s*\(/.test(codeSrc)) {
     blockers.push(f + ': найден Math.random() — нарушен инвариант 1, генерация должна ' +
       'быть детерминированной');
   }
