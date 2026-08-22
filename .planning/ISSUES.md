@@ -1014,9 +1014,10 @@ export function buildImpossible(kind, anchor, opts = {}) → { fill(i, out), cou
   `mandelbulbShell`, `hilbertCurve`, `thomasAttractor`, `cantorDust`.
 - Апериодика и неевклидовость: `penroseTiling`, `ammannBeenker`, `quasicrystal3d`,
   `poincareDisk73`, `hyperbolicBall`.
-- Светила с провалом (для признака 10, тут нужна конструкция, а не готовое имя): плотное
-  ядро, **пустой промежуток**, внешнее кольцо. Например `accretionGap`, `hopfHalo`,
-  `ringedVoid`, `coronaGap`, `novaRemnant`, `doubleShell`, `cometHalo`, `pulsarGap`.
+- Кольцо вокруг ядра с пустотой между ними (для признака 10, тут нужна конструкция, а не
+  готовое имя): плотное ядро, **пустой промежуток**, внешнее кольцо. Например `ringedVoid`,
+  `hopfHalo`, `annulusCore`, `shellPair`, `gapTorus`, `coreHalo`, `doubleShell`, `hollowRing`.
+  Имена и объекты — геометрические: это математические тела, а не пейзаж и не декорация.
 
 Два семейства тут — прямой заказ: «светило плюс кольцо плюс пустота» (8 форм) и «честно
 пустая середина» (12 форм). Именно они закрывают признаки 10 и 11 референса, которых в
@@ -2399,3 +2400,43 @@ TypeError: Cannot read properties of undefined (reading 'glyph')
 
 **Проверка:** `node tools/impossible-check.mjs` — печатает `IMPOSSIBLE_OK`, в строке
 «разброс размеров при одном extent» стоит число не больше 2.0.
+
+---
+
+## R22 — убрать из проекта объекты прежней концепции
+
+**Файлы:** правка `src/world/shapeCatalog.js`, правка `src/world/shapePatch.js`, удалить `src/world/legacyShapes.js`, удалить `src/world/allShapes.js`
+**Читать:** `src/world/shapeCatalog.js`, `src/world/shapePatch.js`
+
+Вместе с каталогом форм в проект приехали объекты прежней концепции — горы, каньоны, дюны,
+колоннады, купола, мосты. Текущая концепция другая: «Everything is Symbols. Glyphs, formulas,
+patterns — the only material», миры абстрактные и математические. Гора из глифов этому
+противоречит, и на кадре она читается как пейзаж, а не как структура.
+
+**1. Удалить два файла целиком.** `src/world/legacyShapes.js` — 169 форм прежней концепции,
+среди них `tree`, `mushroom`, `rock`, `mountain`, `valley`, `cave`, `island`, `waterfall`,
+`river`, `cathedral`, `castle`, `bridge`, `tower`, `dome`, `arch`, `column`, `facade`,
+`spiralStaircase`, `labyrinth`, `avalanche`. `src/world/allShapes.js` — сборка каталога
+с этим набором. **Игра их не импортирует вообще**: `world.js` зовёт `shapeField.js`, а тот
+берёт формы только из `shapeCatalog.js`. То есть это мёртвый груз, и удаление ничего
+не меняет на экране. Инструмент `tools/pick-dense-shapes.mjs`, который их читал, уже удалён.
+
+**2. Убрать из каталога девять форм**, которые в мир попадают: `mountainRidge`,
+`canyonWalls`, `sandDunes`, `crystalSpires`, `colonnadeRing`, `domeShell`, `archBridge`,
+`ziggurat`, `layeredPlates`. Убирать вместе с их определениями, а не просто из списка
+экспорта. После правки в каталоге остаётся 35 форм.
+
+`geoDome` не трогай: геодезическая сфера — это многогранник, та же семья, что `icoLattice`,
+`octaFrame` и `tetraWire`. Имя звучит архитектурно, объект математический.
+
+**3. Раскладки не трогай.** `src/world/layouts/architectural.js` остаётся как есть: аркады
+и залы есть на кадрах референса, это силуэты структуры мира, а не предметы из прежней игры.
+Признак 3 держится на восьми раскладках, и любая правка там его ломает.
+
+Поле `shape` шестибитное: 64 значения на 35 форм — нормально, гейт это разрешает.
+
+**Проверка:** `node tools/shape-check.mjs` — «форм всего: 35», «не проходят проверку: 0»,
+плюс `node tools/shapefield-check.mjs` — печатает `SHAPEFIELD_OK`, плюс
+`node tools/world-check.mjs` — печатает `WORLD_OK`.
+
+Сверка каталога с коммитом этой правке разрешена: файлы каталога перечислены в её списке.

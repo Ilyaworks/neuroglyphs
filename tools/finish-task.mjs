@@ -117,7 +117,7 @@ if (fs.existsSync('src/render/post.js')) {
 // shapePatch.js дописали 51 форму, среди них заново определили имена из каталога, и они
 // молча вытеснили замеренные версии. Теперь это сверка с историей побайтово.
 if (fs.existsSync('src/world/shapeCatalog.js')) {
-  const r = run('node tools/catalog-untouched.mjs');
+  const r = run('node tools/catalog-untouched.mjs --task ' + id);
   if (!r.ok) refuse('каталог форм правили руками', r.out);
   console.log('каталог форм совпадает с историей');
 }
