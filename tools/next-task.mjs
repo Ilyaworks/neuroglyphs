@@ -130,6 +130,9 @@ function healthCheck() {
   if (fs.existsSync('src/render/shaders.js')) {
     checks.push(['дисторсии', 'node tools/shaders-check.mjs']);
   }
+  if (fs.existsSync('src/render/post.js')) {
+    checks.push(['связка постобработки', 'node tools/post-check.mjs']);
+  }
   if (fs.existsSync('src/player/flycam.js')) {
     checks.push(['полёт камеры', 'node tools/flycam-check.mjs']);
   }
