@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "dev": "node server.mjs",
-    "test": "node test/rng.test.mjs && node test/seed.test.mjs"
+    "test": "node test/rng.test.mjs && node test/seed.test.mjs && node test/layouts.test.mjs"
   }
 }
