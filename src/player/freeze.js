@@ -30,6 +30,7 @@ export function createFreeze(camera, dom, flycam) {
       if (savedPos) camera.position.copy(savedPos);
       if (savedQuat) camera.quaternion.copy(savedQuat);
       camera.updateMatrixWorld(true);
+      if (flycam && flycam.syncFromCamera) flycam.syncFromCamera();
     } else {
       frozen = true;
       savedPos = camera.position.clone();

@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { createWorld } from "./world/world.js";
 import { buildComposer } from "./render/post.js";
+import { createFlyCam } from "./player/flycam.js";
+import { createFreeze } from "./player/freeze.js";
 
 const canvas = document.getElementById("scene");
 
@@ -50,12 +52,26 @@ window.addEventListener("resize", resize);
 
 const post = buildComposer(renderer, scene, camera);
 
+export const flyCam = createFlyCam(camera, canvas);
+export const freeze = createFreeze(camera, canvas, flyCam);
+
 let lastTime = performance.now();
+let wasFrozen = false;
 
 function tick(now) {
   const dt = Math.min(Math.max((now - lastTime) / 1000, 0), 0.1);
   lastTime = now;
   for (const fn of frameFns) fn(dt);
+  const frozen = freeze.isFrozen();
+  if (frozen) {
+    freeze.update(dt);
+  } else if (wasFrozen) {
+    // Кадр сразу после выхода из осмотра: камера только что восстановлена,
+    // полёт ещё не должен её двигать.
+  } else {
+    flyCam.update(dt);
+  }
+  wasFrozen = frozen;
   post.composer.render();
   requestAnimationFrame(tick);
 }

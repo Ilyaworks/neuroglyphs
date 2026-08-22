@@ -70,6 +70,15 @@ export function createFlyCam(camera, dom) {
     speed = v;
   }
 
+  function syncFromCamera() {
+    euler.setFromQuaternion(camera.quaternion, "YXZ");
+    yaw = euler.y;
+    pitch = euler.x;
+    velX = 0;
+    velY = 0;
+    velZ = 0;
+  }
+
   function update(dt) {
     if (disposed) return;
     if (typeof dt !== "number" || !Number.isFinite(dt) || dt <= 0) return;
@@ -123,5 +132,5 @@ export function createFlyCam(camera, dom) {
     window.removeEventListener("pointermove", onMouseMove);
   }
 
-  return { update, setSpeed, dispose };
+  return { update, setSpeed, syncFromCamera, dispose };
 }
