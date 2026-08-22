@@ -62,6 +62,12 @@ if (fs.existsSync('src/world/fieldMaterial.js')) {
   console.log('шейдер поля в порядке');
 }
 
+if (fs.existsSync('src/world/layouts')) {
+  const r = run('node tools/layout-check.mjs');
+  if (!r.ok) refuse('раскладки не проходят проверку', r.out);
+  console.log('раскладки в порядке');
+}
+
 // Детерминизм по сиду (правило 7) и читаемость глубины — признак 2 в REFERENCE.md.
 if (fs.existsSync('src/world/world.js')) {
   const r = run('node tools/world-check.mjs');
