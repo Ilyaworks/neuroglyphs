@@ -152,6 +152,13 @@ if (fs.existsSync('src/atmosphere/impossible.js')) {
 // А это гейт самого тонкого слоя: shape-check про shapeField.js не знает ничего, и без
 // отдельной проверки слой закрылся бы ровно так, как закрывалась неработающая N09 —
 // модуль, который до поздней задачи никто не импортирует.
+// Набор новых форм: shape-check мерит только каталог, про новый файл он не знает.
+if (fs.existsSync('src/world/shapeIllusions.js')) {
+  const r = run('node tools/illusion-check.mjs');
+  if (!r.ok) refuse('новый набор форм не проходит проверку', r.out);
+  console.log('новые формы в порядке: провалы, пустые середины, без близнецов');
+}
+
 if (fs.existsSync('src/world/shapeField.js')) {
   const r = run('node tools/shapefield-check.mjs');
   if (!r.ok) refuse('слой форм не проходит проверку', r.out);

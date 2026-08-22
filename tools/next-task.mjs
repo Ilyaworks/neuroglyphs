@@ -153,6 +153,9 @@ function healthCheck() {
   if (fs.existsSync('src/world/shapeCatalog.js') && fs.existsSync('tools/shape-check.mjs')) {
     checks.push(['каталог форм', 'node tools/shape-check.mjs']);
   }
+  if (fs.existsSync('src/world/shapeIllusions.js')) {
+    checks.push(['новые формы', 'node tools/illusion-check.mjs']);
+  }
   if (fs.existsSync('src/world/shapeField.js')) {
     checks.push(['слой форм', 'node tools/shapefield-check.mjs']);
   }
