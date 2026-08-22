@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { FisheyeShader, ChromaShader } from "./shaders.js";
 
 export function buildComposer(renderer, scene, camera) {
   const composer = new EffectComposer(renderer);
@@ -11,6 +13,10 @@ export function buildComposer(renderer, scene, camera) {
   const halfHeight = Math.max(1, Math.floor(window.innerHeight / 2));
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(halfWidth, halfHeight), 0.9, 0.5, 0.15);
   composer.addPass(bloomPass);
+  const fisheyePass = new ShaderPass(FisheyeShader);
+  const chromaPass = new ShaderPass(ChromaShader);
+  composer.addPass(fisheyePass);
+  composer.addPass(chromaPass);
 
   function resize(width, height) {
     composer.setSize(width, height);
@@ -31,6 +37,12 @@ export function buildComposer(renderer, scene, camera) {
       bloomPass.strength = strength;
       bloomPass.radius = radius;
       bloomPass.threshold = threshold;
+    },
+    setFisheye(v) {
+      fisheyePass.uniforms.strength.value = v;
+    },
+    setChroma(v) {
+      chromaPass.uniforms.amount.value = v;
     },
     resize,
     dispose,
