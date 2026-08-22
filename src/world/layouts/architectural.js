@@ -132,9 +132,10 @@ function emitCorridor(list, c, spacing, rng) {
 
 export function layoutFractalCorridors(rng, params = {}) {
   const target = params.target ?? 20000;
-  const radius = params.radius || 60;
+  const extent = params.extent ?? 400;
+  const radius = params.radius || extent * 0.15;
   const depth = params.depth ?? 2;
-  const corridorLength = params.corridorLength || 180;
+  const corridorLength = params.corridorLength || extent * 0.40;
   const baseScale = params.scale || 4;
   const main = randomUnit(rng);
   const root = { origin: [0, 0, 0], dir: main, length: corridorLength, radius, scale: baseScale, depthLeft: depth };
@@ -199,7 +200,8 @@ function emitCrystal(list, center, size, rng) {
 export function layoutCrystalline(rng, params = {}) {
   const target = params.target ?? 20000;
   const count = params.count ?? Math.max(1, Math.round(target / 32));
-  const radius = params.radius || 200;
+  const extent = params.extent ?? 400;
+  const radius = params.radius || extent * 0.8;
   const baseSize = params.size || 10;
   const list = [];
   for (let i = 0; i < count; i++) {
@@ -228,8 +230,8 @@ export function layoutGeometric(rng, params = {}) {
   const target = params.target ?? 20000;
   const occupancy = params.occupancy ?? 0.22;
   const grid = params.grid ?? Math.max(4, Math.round(Math.cbrt(target / occupancy)) - 1);
-  const extent = params.extent || 300;
-  const spacing = extent / grid;
+  const extent = params.extent ?? 400;
+  const spacing = (extent * 2) / grid;
   const baseScale = params.scale || 3;
   const list = [];
   for (let x = 0; x <= grid; x++) {

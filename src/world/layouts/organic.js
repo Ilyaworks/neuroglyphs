@@ -132,9 +132,10 @@ function emitRibbon(list, ribbon, spacing, baseScale, rng) {
 
 export function layoutOrganic(rng, params = {}) {
   const target = params.target ?? 20000;
+  const extent = params.extent ?? 400;
   const ribbonCount = params.ribbons ?? 6;
-  const ribbonLength = params.length || 240;
-  const thickness = params.thickness || 14;
+  const ribbonLength = params.length || extent * 1.0;
+  const thickness = params.thickness || extent * 0.035;
   const baseScale = params.scale || 4;
   const ribbons = [];
   for (let i = 0; i < ribbonCount; i++) {
@@ -214,14 +215,15 @@ function emitStaircaseDirect(list, origin, right, dir, up, stepsN, stepW, stepH,
 
 export function layoutAlmostReal(rng, params = {}) {
   const target = params.target ?? 20000;
-  const bayWidth = params.bayWidth || 18;
-  const archHeight = params.archHeight || 26;
-  const stepW = params.stepWidth || 6;
-  const stepH = params.stepHeight || 3;
+  const extent = params.extent ?? 400;
+  const bayWidth = params.bayWidth || extent * 0.2;
+  const archHeight = params.archHeight || extent * 0.15;
+  const stepW = params.stepWidth || extent * 0.03;
+  const stepH = params.stepHeight || extent * 0.015;
   const baseScale = params.scale || 4;
-  const bays = Math.max(4, Math.round(8 * Math.cbrt(target / 20000)));
-  const rows = Math.max(2, Math.round(2 * Math.cbrt(target / 20000)));
-  const stairSteps = Math.max(8, Math.round(12 * Math.cbrt(target / 20000)));
+  const bays = 8;
+  const rows = 2;
+  const stairSteps = 12;
   const perArch = Math.max(4, Math.round(target / (rows * bays * 2.5)));
   const perCol = Math.max(3, Math.round(target / (rows * bays * 8)));
   const perStair = Math.max(2, Math.round(target / (stairSteps * 3)));
@@ -260,21 +262,22 @@ export function layoutAlmostReal(rng, params = {}) {
 
 export function layoutVoid(rng, params = {}) {
   const target = params.target ?? 20000;
-  const extent = params.extent || 900;
+  const extent = params.extent ?? 400;
   const clusters = params.clusters ?? 12;
   const baseScale = params.scale || 6;
   const per = Math.max(1, Math.round(target / clusters));
-  const list = [];
+  const centers = [];
   for (let c = 0; c < clusters; c++) {
     const u = rng() * 2 - 1;
     const v = rng() * 2 - 1;
     const w = rng() * 2 - 1;
     const len = Math.hypot(u, v, w) || 1;
     const rad = extent * (0.2 + rng() * 0.75);
-    const cx = (u / len) * rad;
-    const cy = (v / len) * rad;
-    const cz = (w / len) * rad;
-    const spread = 8 + rng() * 20;
+    const spread = extent * (0.02 + rng() * 0.05);
+    centers.push([(u / len) * rad, (v / len) * rad, (w / len) * rad, spread]);
+  }
+  const list = [];
+  for (const [cx, cy, cz, spread] of centers) {
     for (let i = 0; i < per; i++) {
       const a = rng() * Math.PI * 2;
       const b = Math.acos(rng() * 2 - 1);
