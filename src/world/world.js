@@ -4,6 +4,7 @@ import { decodeSeed, randomSeed } from "../core/seed.js";
 import { buildGlyphAtlas } from "../core/atlas.js";
 import { buildFieldGeometry } from "./fieldGeometry.js";
 import { buildFieldMaterial } from "./fieldMaterial.js";
+import { buildShapeField } from "./shapeField.js";
 import { LAYOUTS } from "./layouts/index.js";
 import { buildExitPortal } from "./portal.js";
 import { resolvePalette } from "../art/palettes.js";
@@ -28,7 +29,9 @@ export function createWorld(seedCode) {
   const rng = fields.rng;
   const group = new THREE.Group();
 
-  const density = 1500 + fields.density * 2000;
+  const budget = 1500 + fields.density * 2000;
+  const density = Math.floor(budget * 0.6);
+  const shapeCount = Math.max(1, budget - density);
   const atlas = buildGlyphAtlas();
 
   // Мир строится не сферой, а раскладкой из сида: восемь структур, по три бита сида.
@@ -64,6 +67,17 @@ export function createWorld(seedCode) {
   material.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
   const field = new THREE.Points(geometry, material);
   group.add(field);
+
+  // Второе, «формовое» поле: облако по форме из каталога, выбранной по seed.shape.
+  // Делит тот же бюджет точек, красится той же палитрой мира.
+  const shape = buildShapeField(fields, { count: shapeCount, extent: FIELD_RADIUS });
+  const { geometry: shapeGeo, ready: shapeReady } = buildFieldGeometry(shape.count, (i, out) => shape.fill(i, out));
+  const { material: shapeMat, uniforms: shapeUniforms } = buildFieldMaterial(atlas, { fogDensity });
+  shapeMat.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
+  shapeUniforms.uPulse = uniforms.uPulse;
+  shapeUniforms.uTime = uniforms.uTime;
+  const shapeField = new THREE.Points(shapeGeo, shapeMat);
+  group.add(shapeField);
 
   // Дальний план живёт на своём потоке случайности: иначе он зависит от того, сколько
   // чисел израсходовала раскладка, и меняется при любой правке структуры мира.
@@ -125,7 +139,7 @@ export function createWorld(seedCode) {
   let disposed = false;
   return {
     group,
-    ready,
+    ready: Promise.all([ready, shapeReady]).then(() => true),
     uniforms,
     distanceToExit(cameraPos) {
       return cameraPos.distanceTo(group.userData.exitPosition);
@@ -134,8 +148,10 @@ export function createWorld(seedCode) {
       if (disposed) return;
       disposed = true;
       geometry.dispose();
+      shapeGeo.dispose();
       starGeo.dispose();
       material.dispose();
+      shapeMat.dispose();
       starMat.dispose();
       portal.group.traverse((o) => {
         if (o.isPoints) {
