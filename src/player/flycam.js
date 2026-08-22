@@ -1,4 +1,4 @@
-import { Euler } from "three";
+import { Euler, Vector3 } from "three";
 
 const BASE_SPEED = 60;
 const ACCEL = 10;
@@ -23,8 +23,8 @@ export function createFlyCam(camera, dom) {
   let yaw = 0;
   let pitch = 0;
 
-  const dir = new camera.position.constructor();
-  const right = new camera.position.constructor();
+  const dir = new Vector3();
+  const right = new Vector3();
   const euler = new Euler(0, 0, 0, "YXZ");
 
   const onKeyDown = (e) => {
@@ -35,6 +35,9 @@ export function createFlyCam(camera, dom) {
   };
   const onWindowBlur = () => {
     keys.clear();
+  };
+  const onPointerLockChange = () => {
+    if (document.pointerLockElement !== dom) keys.clear();
   };
   const onPress = () => {
     if (disposed) return;
@@ -55,6 +58,7 @@ export function createFlyCam(camera, dom) {
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onWindowBlur);
+  document.addEventListener("pointerlockchange", onPointerLockChange);
   window.addEventListener("pointerdown", onPress);
   window.addEventListener("mousedown", onPress);
   window.addEventListener("click", onPress);
@@ -111,6 +115,7 @@ export function createFlyCam(camera, dom) {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("blur", onWindowBlur);
+    document.removeEventListener("pointerlockchange", onPointerLockChange);
     window.removeEventListener("pointerdown", onPress);
     window.removeEventListener("mousedown", onPress);
     window.removeEventListener("click", onPress);
