@@ -62,6 +62,13 @@ if (fs.existsSync('src/world/fieldMaterial.js')) {
   console.log('шейдер поля в порядке');
 }
 
+// Детерминизм по сиду (правило 7) и читаемость глубины — признак 2 в REFERENCE.md.
+if (fs.existsSync('src/world/world.js')) {
+  const r = run('node tools/world-check.mjs');
+  if (!r.ok) refuse('мир на экране не проходит проверку', r.out);
+  console.log('мир в порядке: сид детерминирован, глубина читается');
+}
+
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   const worldReady = fs.existsSync('src/world/world.js');
   const extra = worldReady ? ' --expect-content' : '';
