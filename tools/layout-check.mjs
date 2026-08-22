@@ -23,10 +23,16 @@ const DIR = dirArg || 'src/world/layouts';
 
 // Контракт: раскладка обязана уметь выдать примерно столько точек, сколько попросили,
 // потому что плотность поля берётся из сида и меняется от мира к миру.
-const TARGETS = [5000, 20000];
+const TARGETS = [1500, 5000, 20000, 31500];
 const TOLERANCE = 0.30;
-const SEED_A = 12345;
-const SEED_B = 12346;
+// Сидов несколько не для красоты: у раскладки с ветвящимся деревом отклонение зависит
+// от формы дерева, и на одном сиде проверка проходила, пока каждый шестой сид выходил
+// за допуск. Требуем допуск на всех сидах и печатаем худший.
+// Сидов именно много: на восьми проверка проходила, пока прогон на шестидесяти
+// показывал, что каждый шестой сид выходит за допуск. Хвост распределения надо
+// сэмплировать, иначе гейт зелёный по случайности выборки.
+const SEEDS = Array.from({ length: 24 }, (_, i) => (i + 1) * 7919);
+const SEED_OTHER = 12346;
 
 const problems = [];
 const rows = [];
@@ -120,12 +126,22 @@ for (const file of files) {
   for (const [name, fn] of fns) {
     for (const target of TARGETS) {
       let res;
-      try {
-        res = fn(rngMod.mulberry32(SEED_A), { target });
-      } catch (e) {
-        problems.push(name + ' (target ' + target + '): упала — ' + e.message);
-        continue;
+      const offs = [];
+      let crashed = false;
+      for (const seed of SEEDS) {
+        let r;
+        try {
+          r = fn(rngMod.mulberry32(seed), { target });
+        } catch (e) {
+          problems.push(name + ' (target ' + target + ', сид ' + seed + '): упала — ' + e.message);
+          crashed = true;
+          break;
+        }
+        if (!r || typeof r.count !== 'number') continue;
+        offs.push({ seed, off: Math.abs(r.count - target) / target, count: r.count });
+        if (seed === SEEDS[0]) res = r;
       }
+      if (crashed) continue;
       if (!res || !res.positions || !res.scales || typeof res.count !== 'number') {
         problems.push(name + ': вернула не { positions, scales, count }');
         continue;
@@ -139,7 +155,10 @@ for (const file of files) {
 
       const sig = signature(res);
       const off = target > 0 ? Math.abs(res.count - target) / target : 1;
-      rows.push({ name, target, count: res.count, off, sig });
+      const sorted = offs.slice().sort((x, y) => x.off - y.off);
+      const median = sorted.length ? sorted[Math.floor(sorted.length / 2)].off : 1;
+      const worst = sorted.length ? sorted[sorted.length - 1] : { off: 1, seed: 0, count: 0 };
+      rows.push({ name, target, count: res.count, off, median, worst, seeds: offs.length, sig });
 
       if (sig.nonFinite) problems.push(name + ': нечисловых координат ' + sig.nonFinite);
       if (sig.badScale) problems.push(name + ': неположительных scale ' + sig.badScale);
@@ -147,16 +166,18 @@ for (const file of files) {
         problems.push(name + ': габарит вырожден — ' + sig.span.map(v => v.toFixed(1)).join('x') +
           ', все точки лежат в плоскости или в одной точке');
       }
-      if (off > TOLERANCE) {
-        problems.push(name + ': просили ' + target + ' точек, вернула ' + res.count +
-          ' (отклонение ' + (off * 100).toFixed(0) + '% при допуске ' + (TOLERANCE * 100) + '%). ' +
-          'Плотность поля берётся из сида, поэтому раскладка обязана уметь наполнить ' +
-          'мир на заданное число точек.');
+      const outside = offs.filter(o => o.off > TOLERANCE);
+      if (outside.length) {
+        problems.push(name + ': на цели ' + target + ' допуск ' + (TOLERANCE * 100) + '% нарушен на ' +
+          outside.length + ' сидах из ' + offs.length + ', худший — сид ' + worst.seed +
+          ' дал ' + worst.count + ' вместо ' + target + ' (отклонение ' +
+          (worst.off * 100).toFixed(0) + '%). Плотность поля берётся из сида, поэтому ' +
+          'раскладка обязана держать цель на любом сиде, а не в среднем.');
       }
 
       if (target === TARGETS[TARGETS.length - 1]) {
-        const again = fn(rngMod.mulberry32(SEED_A), { target });
-        const other = fn(rngMod.mulberry32(SEED_B), { target });
+        const again = fn(rngMod.mulberry32(SEEDS[0]), { target });
+        const other = fn(rngMod.mulberry32(SEED_OTHER), { target });
         const h = hash(res.positions);
         if (hash(again.positions) !== h) {
           problems.push(name + ': тот же сид дал другую раскладку — нарушено правило 7');
@@ -176,7 +197,9 @@ console.log('модулей раскладок: ' + files.length + ' (' + files.
 for (const r of rows) {
   console.log(r.name.padEnd(24) + ' target ' + String(r.target).padStart(6) +
     ' -> точек ' + String(r.count).padStart(6) +
-    ', отклонение ' + (r.off * 100).toFixed(0).padStart(3) + '%' +
+    ', отклонение: медиана ' + (r.median * 100).toFixed(0).padStart(3) + '%' +
+    ', худшее ' + (r.worst.off * 100).toFixed(0).padStart(3) + '% (сид ' + r.worst.seed + ')' +
+    ' на ' + r.seeds + ' сидах' +
     ', габарит ' + r.sig.span.map(v => v.toFixed(0)).join('x').padEnd(15) +
     ', занято вокселей ' + r.sig.occupancy.toFixed(3) +
     ', анизотропия ' + r.sig.anisotropy.toFixed(2) +
