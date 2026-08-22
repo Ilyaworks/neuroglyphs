@@ -5,6 +5,7 @@ import { buildGlyphAtlas } from "../core/atlas.js";
 import { buildFieldGeometry } from "./fieldGeometry.js";
 import { buildFieldMaterial } from "./fieldMaterial.js";
 import { LAYOUTS } from "./layouts/index.js";
+import { buildExitPortal } from "./portal.js";
 
 const FIELD_RADIUS = 400;
 const STAR_RADIUS = 2200;
@@ -92,7 +93,24 @@ export function createWorld(seedCode) {
   const stars = new THREE.Points(starGeo, starMat);
   group.add(stars);
 
-  group.userData = { seed: code, structure, bounds };
+  // Портал выхода: ровно один на мир. Садим его на дальнюю по −Z границу габарита —
+  // камера в boot.js стоит в начале координат и смотрит в −Z, поэтому портал обязан
+  // оказаться перед ней, а не за спиной.
+  const portal = buildExitPortal(fields, atlas);
+  const pz = bounds.min[2] - 40;
+  portal.group.position.set(0, 0, pz);
+  portal.group.traverse((o) => {
+    if (o.isPoints) o.frustumCulled = false;
+  });
+  portal.group.traverse((o) => {
+    if (o.isPoints && o.material && o.material.uniforms) {
+      o.material.uniforms.uPulse = uniforms.uPulse;
+      o.material.uniforms.uTime = uniforms.uTime;
+    }
+  });
+  group.add(portal.group);
+
+  group.userData = { seed: code, structure, bounds, exitPosition: portal.group.position };
 
   group.traverse((o) => {
     if (o.isPoints) {
@@ -105,6 +123,9 @@ export function createWorld(seedCode) {
     group,
     ready,
     uniforms,
+    distanceToExit(cameraPos) {
+      return cameraPos.distanceTo(group.userData.exitPosition);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -112,6 +133,12 @@ export function createWorld(seedCode) {
       starGeo.dispose();
       material.dispose();
       starMat.dispose();
+      portal.group.traverse((o) => {
+        if (o.isPoints) {
+          o.geometry.dispose();
+          o.material.dispose();
+        }
+      });
     },
   };
 }
