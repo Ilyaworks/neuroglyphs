@@ -92,6 +92,14 @@ if (fs.existsSync('src/player/flycam.js')) {
   console.log('полёт камеры в порядке');
 }
 
+// «Повторный Tab возвращает в то же положение» глазами не проверяется: разница
+// в пол-градуса не видна, а демонстрация от неё разъезжается.
+if (fs.existsSync('src/player/freeze.js')) {
+  const r = run('node tools/freeze-check.mjs');
+  if (!r.ok) refuse('осмотр со стороны не проходит проверку', r.out);
+  console.log('осмотр со стороны в порядке');
+}
+
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   const worldReady = fs.existsSync('src/world/world.js');
   const extra = worldReady ? ' --expect-content' : '';
