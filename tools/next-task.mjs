@@ -130,7 +130,11 @@ function healthCheck() {
   if (fs.existsSync('src/render/shaders.js')) {
     checks.push(['дисторсии', 'node tools/shaders-check.mjs']);
   }
-  if (fs.existsSync('src/render/post.js')) {
+  // Предстартовая проверка стережёт от регресса, а не требует несделанного: до N24
+  // в post.js нет ни одного ShaderPass, и включённый гейт остановил бы саму задачу,
+  // которая его и закрывает.
+  if (fs.existsSync('src/render/post.js') &&
+      /ShaderPass/.test(fs.readFileSync('src/render/post.js', 'utf8'))) {
     checks.push(['связка постобработки', 'node tools/post-check.mjs']);
   }
   if (fs.existsSync('src/player/flycam.js')) {
