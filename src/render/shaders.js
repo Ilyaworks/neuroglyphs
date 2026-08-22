@@ -1,8 +1,10 @@
+import { Vector2 } from "three";
+
 export const FisheyeShader = {
   uniforms: {
     tDiffuse: { value: null },
     strength: { value: 0.0 },
-    center: { value: null },
+    center: { value: new Vector2(0.5, 0.5) },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
