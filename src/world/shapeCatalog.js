@@ -1,5 +1,5 @@
 // Каталог архетипов формы глифового поля.
-// 32 формы, 8 семейств по 4. Чистые функции от (i, p, out), без импортов и Math.random().
+// Чистые функции от (i, p, out), без импортов и Math.random().
 
 // Локальный хеш для детерминированного разброса: h(n) -> [0, 1)
 import { PATCH } from './shapePatch.js';
@@ -241,103 +241,6 @@ const pulsarBeams = (i, p, out) => {
   out[2] = r * Math.sin(a) * p.flatten;
 };
 
-// ---- рельеф ----
-
-const mountainRidge = (i, p, out) => {
-  // Горный хребет: гребень из пиков, спускающийся в долины.
-  const x = (i / 2000 - 0.5) * p.radius * 2;
-  const ridge = Math.abs(Math.sin(x * p.freq)) * p.radius * 0.6;
-  const peak = Math.pow(Math.abs(Math.sin(x * p.freq * 0.3 + p.twist)), p.distPow) * p.radius * 0.4;
-  out[0] = x;
-  out[1] = ridge + peak + h2(i + 34) * p.tubeR * 0.5;
-  out[2] = h2(i + 35) * p.tubeR * (1 + Math.abs(Math.sin(x * p.freq * 0.5)) * 2);
-};
-
-const canyonWalls = (i, p, out) => {
-  // Каньон: две стены с извилистой рекой между ними.
-  const x = (i / 2000 - 0.5) * p.radius * 2;
-  const side = i % 2 === 0 ? 1 : -1;
-  const wall = p.radius * 0.4 + Math.sin(x * p.freq + p.twist) * p.tubeR;
-  out[0] = x;
-  out[1] = h2(i + 36) * p.tubeR * 0.5 + Math.abs(h2(i + 37)) * p.radius * 0.3;
-  out[2] = side * (wall + h2(i + 38) * p.tubeR * 0.3);
-};
-
-const sandDunes = (i, p, out) => {
-  // Дюны: мягкие волны песка, накатывающие друг на друга.
-  const x = (i / 2000 - 0.5) * p.radius * 2;
-  const z = h2(i + 39) * p.radius * 0.8;
-  const y = Math.sin(x * p.freq + p.twist) * p.tubeR * 0.5
-    + Math.sin(z * p.freq * 1.3) * p.tubeR * 0.5;
-  out[0] = x;
-  out[1] = y;
-  out[2] = z;
-};
-
-const crystalSpires = (i, p, out) => {
-  // Кристаллы: острые пирамиды-выступы, растущие из плоскости.
-  const c = i % p.clusterCount;
-  const t = Math.floor(i / p.clusterCount) / Math.max(1, Math.floor(2000 / p.clusterCount));
-  const ca = (c / p.clusterCount) * TAU + h2(c + 40) * 0.5;
-  const cx = Math.cos(ca) * p.radius * 0.6;
-  const cz = Math.sin(ca) * p.radius * 0.6 * p.flatten;
-  const hgt = p.radius * 0.5 * (0.5 + 0.5 * h(c + 41));
-  out[0] = cx + h2(i + 42) * p.tubeR * 0.5 * (1 - t);
-  out[1] = t * hgt;
-  out[2] = cz + h2(i + 43) * p.tubeR * 0.5 * (1 - t);
-};
-
-// ---- архитектура ----
-
-const colonnadeRing = (i, p, out) => {
-  // Колоннада: кольцо колонн с перемычками сверху.
-  const col = i % p.clusterCount;
-  const t = Math.floor(i / p.clusterCount) / Math.max(1, Math.floor(2000 / p.clusterCount));
-  const a = (col / p.clusterCount) * TAU + p.twist;
-  const r = p.radius * 0.7;
-  const top = t > 0.9;
-  out[0] = Math.cos(a) * r + (top ? h2(i + 44) * p.tubeR * 0.3 : 0);
-  out[1] = (top ? p.radius * 0.5 : t * p.radius * 0.4) + h2(i + 45) * p.tubeR * 0.1;
-  out[2] = Math.sin(a) * r * p.flatten + (top ? h2(i + 46) * p.tubeR * 0.3 : 0);
-};
-
-const domeShell = (i, p, out) => {
-  // Купол: полусфера из точек, равномерно распределённых по ней.
-  const n = 2000;
-  const ga = Math.PI * (3 - Math.sqrt(5));
-  const y = Math.max(0, 1 - 2 * (i + 0.5) / n);
-  const rr = Math.sqrt(Math.max(0, 1 - y * y));
-  const a = ga * i + p.twist;
-  const s = p.radius * 0.7;
-  out[0] = Math.cos(a) * rr * s + h2(i + 47) * p.tubeR * 0.1;
-  out[1] = y * s * p.flatten;
-  out[2] = Math.sin(a) * rr * s + h2(i + 48) * p.tubeR * 0.1;
-};
-
-const archBridge = (i, p, out) => {
-  // Арочный мост: полукруглая арка с настилом по верху.
-  const t = i / 2000;
-  const a = Math.PI * t;
-  const r = p.radius * 0.7;
-  const deck = t > 0.1 && t < 0.9;
-  out[0] = Math.cos(a) * r + h2(i + 49) * p.tubeR * 0.2;
-  out[1] = (deck ? Math.sin(a) * r * 0.9 : Math.sin(a) * r) + h2(i + 50) * p.tubeR * 0.2;
-  out[2] = h2(i + 51) * p.tubeR * (deck ? 0.5 : 1.5);
-};
-
-const ziggurat = (i, p, out) => {
-  // Ступенчатая башня: пирамида из уступающих ярусов.
-  const level = Math.floor(i / 250);
-  const t = (i % 250) / 250;
-  const s = p.radius * 0.7 * (1 - level / 8);
-  const corner = i % 4;
-  const ex = corner === 0 || corner === 1 ? 1 : -1;
-  const ez = corner === 0 || corner === 2 ? 1 : -1;
-  out[0] = ex * s * (0.5 + 0.5 * t) + h2(i + 52) * p.tubeR * 0.2;
-  out[1] = level * p.radius * 0.15 + h2(i + 53) * p.tubeR * 0.1;
-  out[2] = ez * s * (0.5 + 0.5 * (1 - t)) + h2(i + 54) * p.tubeR * 0.2;
-};
-
 // ---- поверхности ----
 
 const hyperbolicSaddle = (i, p, out) => {
@@ -425,17 +328,6 @@ const voronoiCells = (i, p, out) => {
   out[2] = cz + h2(i + 71) * cellR;
 };
 
-const layeredPlates = (i, p, out) => {
-  // Слоистые пластины: горизонтальные слои, смещённые по спирали.
-  const layer = i % p.strands;
-  const t = Math.floor(i / p.strands) / Math.max(1, Math.floor(2000 / p.strands));
-  const a = t * TAU * p.turns + p.twist + (layer / p.strands) * TAU;
-  const r = p.radius * 0.5 * (0.5 + 0.5 * t);
-  out[0] = Math.cos(a) * r + h2(i + 72) * p.tubeR * 0.3;
-  out[1] = (layer / p.strands - 0.5) * p.radius * 1.2 * p.flatten;
-  out[2] = Math.sin(a) * r + h2(i + 73) * p.tubeR * 0.3;
-};
-
 // ---- каталог ----
 
 const BASE_SHAPES = {
@@ -459,16 +351,6 @@ const BASE_SHAPES = {
   blackHoleDisc,
   cometTail,
   pulsarBeams,
-  // рельеф
-  mountainRidge,
-  canyonWalls,
-  sandDunes,
-  crystalSpires,
-  // архитектура
-  colonnadeRing,
-  domeShell,
-  archBridge,
-  ziggurat,
   // поверхности
   hyperbolicSaddle,
   mobiusStrip,
@@ -478,7 +360,6 @@ const BASE_SHAPES = {
   cubeLattice,
   hexGrid,
   voronoiCells,
-  layeredPlates,
 };
 
 // ---- legacy center-clustered forms (from old SHAPES in main.js) ----

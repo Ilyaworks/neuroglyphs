@@ -29,7 +29,7 @@ function h2(n) {
 
 const TAU = Math.PI * 2;
 
-// ---- девять переделанных форм ----
+// ---- пять переделанных форм ----
 
 const tetraWire = (i, p, out) => {
   // Тетраэдр: каркас из 4 вершин и 6 рёбер, утолщённый и заполненный объёмом.
@@ -58,18 +58,6 @@ const cubeLattice = (i, p, out) => {
   out[2] = (z - (n - 1) / 2) * s * 2 + h2(i + 213) * s * 1.6;
 };
 
-const colonnadeRing = (i, p, out) => {
-  // Колоннада: кольцо колонн с перемычками, утолщённое и заполненное.
-  const col = i % p.clusterCount;
-  const t = Math.floor(i / p.clusterCount) / Math.max(1, Math.floor(2000 / p.clusterCount));
-  const a = (col / p.clusterCount) * TAU + p.twist;
-  const r = p.radius * (0.55 + 0.25 * h(i + 221));
-  const top = t > 0.9;
-  out[0] = Math.cos(a) * r + h2(i + 222) * p.radius * 0.15;
-  out[1] = (top ? p.radius * 0.5 : t * p.radius * 0.4) + h2(i + 223) * p.radius * 0.15;
-  out[2] = Math.sin(a) * r * p.flatten + h2(i + 224) * p.radius * 0.15;
-};
-
 const octaFrame = (i, p, out) => {
   // Октаэдр: каркас из 6 вершин и 12 рёбер, утолщённый и заполненный.
   const V = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
@@ -82,19 +70,6 @@ const octaFrame = (i, p, out) => {
   out[0] = (A[0] + (B[0] - A[0]) * t) * s * inset + h2(i + 232) * p.radius * 0.15;
   out[1] = (A[1] + (B[1] - A[1]) * t) * s * p.flatten * inset + h2(i + 233) * p.radius * 0.15;
   out[2] = (A[2] + (B[2] - A[2]) * t) * s * inset + h2(i + 234) * p.radius * 0.15;
-};
-
-const ziggurat = (i, p, out) => {
-  // Ступенчатая башня: пирамида из уступающих ярусов, заполненная объёмом.
-  const level = Math.floor(i / 250);
-  const t = (i % 250) / 250;
-  const s = p.radius * 0.7 * (1 - level / 8);
-  const corner = i % 4;
-  const ex = corner === 0 || corner === 1 ? 1 : -1;
-  const ez = corner === 0 || corner === 2 ? 1 : -1;
-  out[0] = ex * s * (0.5 + 0.5 * t) + h2(i + 241) * p.radius * 0.15;
-  out[1] = level * p.radius * 0.15 + h2(i + 242) * p.radius * 0.15;
-  out[2] = ez * s * (0.5 + 0.5 * (1 - t)) + h2(i + 243) * p.radius * 0.15;
 };
 
 const icoLattice = (i, p, out) => {
@@ -128,33 +103,6 @@ const icoLattice = (i, p, out) => {
   out[0] = (A[0] + (B[0] - A[0]) * tt) * s * inset + h2(i + 252) * p.radius * 0.15;
   out[1] = (A[1] + (B[1] - A[1]) * tt) * s * p.flatten * inset + h2(i + 253) * p.radius * 0.15;
   out[2] = (A[2] + (B[2] - A[2]) * tt) * s * inset + h2(i + 254) * p.radius * 0.15;
-};
-
-const domeShell = (i, p, out) => {
-  // Купол: полусфера, разложенная по нескольким вложенным слоям от центра до края.
-  const layer = i % 4;
-  const tt = Math.floor(i / 4) / Math.max(1, Math.floor(2000 / 4));
-  const ga = Math.PI * (3 - Math.sqrt(5));
-  const y = Math.max(0, 1 - 2 * (tt + 0.5) / 1500);
-  const rr = Math.sqrt(Math.max(0, 1 - y * y));
-  const a = ga * tt + p.twist + layer * 0.7;
-  const scale = [0.3, 0.55, 0.8, 1.0][layer];
-  const s = p.radius * 0.7 * scale;
-  out[0] = Math.cos(a) * rr * s + h2(i + 261) * p.radius * 0.12;
-  out[1] = y * s * p.flatten + h2(i + 262) * p.radius * 0.12;
-  out[2] = Math.sin(a) * rr * s + h2(i + 263) * p.radius * 0.12;
-};
-
-const archBridge = (i, p, out) => {
-  // Арочный мост: полукруглая арка с настилом, разложенная по слоям.
-  const layer = i % 3;
-  const tt = Math.floor(i / 3) / Math.max(1, Math.floor(2000 / 3));
-  const a = Math.PI * tt;
-  const r = p.radius * 0.7 * [0.5, 0.75, 1.0][layer];
-  const deck = tt > 0.1 && tt < 0.9;
-  out[0] = Math.cos(a) * r + h2(i + 271) * p.radius * 0.15;
-  out[1] = (deck ? Math.sin(a) * r * 0.9 : Math.sin(a) * r) + h2(i + 272) * p.radius * 0.15;
-  out[2] = h2(i + 273) * p.radius * (deck ? 0.3 : 0.8);
 };
 
 const logSpiral = (i, p, out) => {
@@ -250,12 +198,8 @@ const globularBloom = (i, p, out) => {
 export const PATCH = {
   tetraWire,
   cubeLattice,
-  colonnadeRing,
   octaFrame,
-  ziggurat,
   icoLattice,
-  domeShell,
-  archBridge,
   logSpiral,
   stellarCorona,
   accretionHalo,
