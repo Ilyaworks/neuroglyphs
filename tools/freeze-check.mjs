@@ -118,8 +118,12 @@ const PROBE = [
   '    return JSON.stringify({ ошибка: "нет экспорта createFreeze, есть: " + Object.keys(mod).join(", ") });',
   '  }',
   '  const DT = 1 / 60;',
-  '  const key = (code) => document.body.dispatchEvent(',
-  '    new KeyboardEvent("keydown", { code, key: code, bubbles: true, cancelable: true }));',
+  '  let последнееСобытие = null;',
+  '  const key = (code) => {',
+  '    последнееСобытие = new KeyboardEvent("keydown", { code, key: code, bubbles: true, cancelable: true });',
+  '    document.body.dispatchEvent(последнееСобытие);',
+  '    return последнееСобытие;',
+  '  };',
   '  const wheel = (dy) => {',
   '    document.body.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, bubbles: true, cancelable: true }));',
   '  };',
@@ -184,6 +188,10 @@ const PROBE = [
   '    key("Tab");',
   '    итог.расхождениеМестаВторойРаз = maxAbs(sub(pos(camera), место));',
   '    итог.координатыКонечные = pos(camera).every(Number.isFinite) && quat(camera).every(Number.isFinite);',
+  '    // Tab — клавиша перевода фокуса в браузере. Обработчик обязан отменить действие',
+  '    // по умолчанию, иначе фокус уходит с холста и следующий Tab до страницы не дойдёт.',
+  '    итог.tabОтменён = key("Tab").defaultPrevented;',
+  '    key("Tab");',
   '    fr.dispose();',
   '  }',
   '  // Мусорный dt не рождает NaN.',
@@ -230,6 +238,7 @@ console.log('возврат по Tab: расхождение места ' + d.р
   ', угла ' + d.расхождениеУгла.toExponential(2) + ', порог ' + MAX_RETURN_DIFF);
 console.log('второй заход: отъезд ' + d.отъездВторойРаз.toFixed(2) +
   ', возврат ' + d.расхождениеМестаВторойРаз.toExponential(2));
+console.log('Tab отменяет действие браузера по умолчанию: ' + d.tabОтменён);
 console.log('после dispose: ход ' + d.ходПослеDispose.toFixed(6));
 
 if (!d.естьМетоды) problems.push('createFreeze вернул не { update, isFrozen, dispose }');
@@ -276,6 +285,11 @@ if (!(d.отъездВторойРаз >= MIN_THIRD_PERSON) || !(d.расхож�
   problems.push('со второго раза переключение работает иначе: отъезд ' + d.отъездВторойРаз.toFixed(2) +
     ', возврат ' + d.расхождениеМестаВторойРаз.toExponential(2) +
     '. Режим включают и выключают много раз за показ.');
+}
+if (d.tabОтменён !== true) {
+  problems.push('обработчик Tab не отменяет действие браузера по умолчанию (preventDefault). ' +
+    'Tab переводит фокус: он уйдёт с холста, и следующий Tab до страницы уже не дойдёт — ' +
+    'из осмотра будет не выйти.');
 }
 if (!(d.ходПослеDispose <= MAX_AFTER_DISPOSE)) {
   problems.push('dispose не снял слушатели: после него Tab сдвинул камеру на ' + d.ходПослеDispose.toFixed(6));

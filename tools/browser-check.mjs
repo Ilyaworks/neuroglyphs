@@ -19,8 +19,19 @@ const arg = (name, def) => {
 
 const PORT = 5173;
 const CDP_PORT = 9333;
-const urlPath = arg('url', '/');
+const urlPathArg = arg('url', '/');
 const expectContent = process.argv.includes('--expect-content');
+// Сид для замера непустого кадра. Без него страница берёт случайный сид от Date.now(),
+// и проверка превращалась в лотерею: плотность поля — поле сида, при её нуле мир честно
+// даёт 1500 точек на объём радиуса 400. Замер по восьми структурам при средней плотности:
+// 6.86, 3.71, 4.60, 13.95, 1.85, 7.62, 3.39, 4.15 процента светящихся пикселей — все
+// проходят. А сид 0000-71k2-dijo (плотность 0, структура 4) даёт 0.37% и валится всегда,
+// хотя мир отрисован. Модель это списывала на «CDN не успел», хотя терпения тут 25 секунд.
+// Берём середину: 0000-71k2-dlpc — 6.86%, порог 0.5%, запас больше десятикратного.
+const CONTENT_SEED = '0000-71k2-dlpc';
+const urlPath = (expectContent && !/[?&]seed=/.test(urlPathArg))
+  ? urlPathArg + (urlPathArg.includes('?') ? '&' : '?') + 'seed=' + CONTENT_SEED
+  : urlPathArg;
 const expectMotion = process.argv.includes('--expect-motion');
 const waitSec = Number(arg('wait', 4));
 const shotName = arg('name', 'page');
@@ -191,8 +202,14 @@ try {
 
   if (expectContent && stats) {
     if (stats.litShare < 0.005 || stats.maxLum < 40) {
+      // Диагноз раньше был один — «мир не отрисовался», — и он врал на разреженном
+      // мире: яркость 255 и восемь десятков оттенков, то есть отрисовался, но пусто.
       problems.push('кадр практически пустой: светится ' + (stats.litShare * 100).toFixed(2) +
-        '% пикселей при максимальной яркости ' + stats.maxLum + '. Мир не отрисовался.');
+        '% пикселей при максимальной яркости ' + stats.maxLum + ' и ' + stats.colors +
+        ' оттенках. ' + (stats.maxLum < 40
+          ? 'Яркого нет вовсе — мир не отрисовался.'
+          : 'Яркие точки есть, значит рисование работает, а мир просто разрежен: ' +
+            'смотри плотность поля у сида ' + urlPath + '.'));
     }
   }
 
