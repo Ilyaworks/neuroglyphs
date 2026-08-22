@@ -147,6 +147,12 @@ function healthCheck() {
       /ShaderPass/.test(fs.readFileSync('src/render/post.js', 'utf8'))) {
     checks.push(['связка постобработки', 'node tools/post-check.mjs']);
   }
+  if (fs.existsSync('src/world/shapeCatalog.js') && fs.existsSync('tools/shape-check.mjs')) {
+    checks.push(['каталог форм', 'node tools/shape-check.mjs']);
+  }
+  if (fs.existsSync('src/world/shapeField.js')) {
+    checks.push(['слой форм', 'node tools/shapefield-check.mjs']);
+  }
   if (fs.existsSync('src/player/flycam.js')) {
     checks.push(['полёт камеры', 'node tools/flycam-check.mjs']);
   }
