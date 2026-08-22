@@ -51,7 +51,11 @@ export function decodePng(buf) {
 
 export function frameStats(buf) {
   const { data, w, h, channels } = decodePng(buf);
-  let lit = 0, sum = 0, max = 0;
+  // clipped — доля пикселей, упершихся в потолок по всем трём каналам. Свечение поверх
+  // плотного скопления глифов срезает там все детали, и глазами это «просто белое пятно»:
+  // светимость при этом высокая, а разглядеть нечего. Отдельная величина нужна потому,
+  // что средняя яркость такой кадр не отличает от честно яркого.
+  let lit = 0, sum = 0, max = 0, clipped = 0;
   const hues = new Set();
   const total = w * h;
   for (let i = 0; i < total; i++) {
@@ -60,6 +64,7 @@ export function frameStats(buf) {
     const lum = (r * 299 + g * 587 + b * 114) / 1000;
     sum += lum;
     if (lum > max) max = lum;
+    if (r >= 250 && g >= 250 && b >= 250) clipped++;
     if (lum > 24) {
       lit++;
       hues.add(((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5));
@@ -69,6 +74,7 @@ export function frameStats(buf) {
     width: w,
     height: h,
     litShare: lit / total,
+    clippedShare: clipped / total,
     meanLum: sum / total,
     maxLum: max,
     colors: hues.size,

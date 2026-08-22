@@ -186,7 +186,8 @@ try {
     stats = frameStats(png);
     console.log('кадр: светится ' + (stats.litShare * 100).toFixed(2) + '% пикселей, ' +
       'средняя яркость ' + stats.meanLum.toFixed(1) + ', максимум ' + stats.maxLum +
-      ', оттенков ' + stats.colors);
+      ', оттенков ' + stats.colors + ', в потолок упирается ' +
+      (stats.clippedShare * 100).toFixed(2) + '%');
   } catch (e) {
     console.log('кадр разобрать не удалось: ' + e.message);
   }
