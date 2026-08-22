@@ -7,6 +7,7 @@ import { buildFieldMaterial } from "./fieldMaterial.js";
 import { buildShapeField } from "./shapeField.js";
 import { LAYOUTS } from "./layouts/index.js";
 import { buildExitPortal } from "./portal.js";
+import { buildImpossible, IMPOSSIBLE_KINDS } from "../atmosphere/impossible.js";
 import { resolvePalette } from "../art/palettes.js";
 
 const FIELD_RADIUS = 400;
@@ -79,6 +80,21 @@ export function createWorld(seedCode) {
   const shapeField = new THREE.Points(shapeGeo, shapeMat);
   group.add(shapeField);
 
+  // Невозможная фигура: привязка — позиция камеры на старте (начало координат),
+  // центр — между камерой и порталом, тип — по seed.shape. Добавляем ПОСЛЕ полей,
+  // не первым: гейт палитры мерит цвет кадра по первому облаку в группе мира.
+  const impKind = IMPOSSIBLE_KINDS[fields.shape % IMPOSSIBLE_KINDS.length];
+  const impCount = Math.max(1, Math.floor(budget * 0.15));
+  const impCenter = [0, 0, bounds.min[2] - 10];
+  const imp = buildImpossible(impKind, [0, 0, 0], { count: impCount, extent: 40, center: impCenter });
+  const { geometry: impGeo, ready: impReady } = buildFieldGeometry(imp.count, (i, out) => imp.fill(i, out));
+  const { material: impMat, uniforms: impUniforms } = buildFieldMaterial(atlas, { fogDensity });
+  impMat.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
+  impUniforms.uPulse = uniforms.uPulse;
+  impUniforms.uTime = uniforms.uTime;
+  const impField = new THREE.Points(impGeo, impMat);
+  group.add(impField);
+
   // Дальний план живёт на своём потоке случайности: иначе он зависит от того, сколько
   // чисел израсходовала раскладка, и меняется при любой правке структуры мира.
   const starRng = mulberry32(strToSeed(code + ":stars"));
@@ -139,7 +155,7 @@ export function createWorld(seedCode) {
   let disposed = false;
   return {
     group,
-    ready: Promise.all([ready, shapeReady]).then(() => true),
+    ready: Promise.all([ready, shapeReady, impReady]).then(() => true),
     uniforms,
     distanceToExit(cameraPos) {
       return cameraPos.distanceTo(group.userData.exitPosition);
@@ -149,9 +165,11 @@ export function createWorld(seedCode) {
       disposed = true;
       geometry.dispose();
       shapeGeo.dispose();
+      impGeo.dispose();
       starGeo.dispose();
       material.dispose();
       shapeMat.dispose();
+      impMat.dispose();
       starMat.dispose();
       portal.group.traverse((o) => {
         if (o.isPoints) {
