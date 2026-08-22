@@ -6,6 +6,7 @@ import { buildFieldGeometry } from "./fieldGeometry.js";
 import { buildFieldMaterial } from "./fieldMaterial.js";
 import { LAYOUTS } from "./layouts/index.js";
 import { buildExitPortal } from "./portal.js";
+import { resolvePalette } from "../art/palettes.js";
 
 const FIELD_RADIUS = 400;
 const STAR_RADIUS = 2200;
@@ -57,7 +58,10 @@ export function createWorld(seedCode) {
     out[2] = points[i * 3 + 2];
   });
 
-  const { material, uniforms } = buildFieldMaterial(atlas);
+  const palette = resolvePalette(fields);
+  const fogDensity = Math.min(0.004, Math.max(0.0003, palette.fogDensity * (0.5 + fields.density / 15)));
+  const { material, uniforms } = buildFieldMaterial(atlas, { fogDensity });
+  material.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
   const field = new THREE.Points(geometry, material);
   group.add(field);
 
@@ -110,7 +114,7 @@ export function createWorld(seedCode) {
   });
   group.add(portal.group);
 
-  group.userData = { seed: code, structure, bounds, exitPosition: portal.group.position };
+  group.userData = { seed: code, structure, bounds, exitPosition: portal.group.position, palette, fogDensity };
 
   group.traverse((o) => {
     if (o.isPoints) {

@@ -27,6 +27,9 @@ export function onFrame(fn) {
 
 const world = createWorld();
 scene.add(world.group);
+const palette = world.group.userData.palette;
+scene.background = new THREE.Color(palette.bg);
+scene.fog = new THREE.FogExp2(new THREE.Color(palette.fog), world.group.userData.fogDensity);
 onFrame((dt) => {
   world.uniforms.uTime.value += dt;
   world.uniforms.uPulse.value = 0.5 + 0.5 * Math.sin(world.uniforms.uTime.value * 2.0);
