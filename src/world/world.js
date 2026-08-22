@@ -85,15 +85,24 @@ export function createWorld(seedCode) {
   // не первым: гейт палитры мерит цвет кадра по первому облаку в группе мира.
   const impKind = IMPOSSIBLE_KINDS[fields.shape % IMPOSSIBLE_KINDS.length];
   const impCount = Math.max(1, Math.floor(budget * 0.15));
-  const impCenter = [0, 0, bounds.min[2] - 10];
-  const imp = buildImpossible(impKind, [0, 0, 0], { count: impCount, extent: 40, center: impCenter });
+  // Точка привязки — позиция камеры на старте, центр — на 45% пути к порталу,
+  // габарит соразмерен миру: эталон 260 даёт 0.88 высоты кадра.
+  const impAnchor = [0, 0, 0];
+  const impCenter = [impAnchor[0], impAnchor[1], (bounds.min[2] - 40) * 0.45];
+  const imp = buildImpossible(impKind, impAnchor, { count: impCount, extent: 260, center: impCenter });
   const { geometry: impGeo, ready: impReady } = buildFieldGeometry(imp.count, (i, out) => imp.fill(i, out));
   const { material: impMat, uniforms: impUniforms } = buildFieldMaterial(atlas, { fogDensity });
   impMat.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
   impUniforms.uPulse = uniforms.uPulse;
   impUniforms.uTime = uniforms.uTime;
   const impField = new THREE.Points(impGeo, impMat);
+  impField.userData.impossible = true;
   group.add(impField);
+  impReady.then(() => {
+    const sz = impGeo.attributes.size.array;
+    for (let i = 0; i < sz.length; i++) sz[i] = Math.max(6, sz[i]);
+    impGeo.attributes.size.needsUpdate = true;
+  });
 
   // Дальний план живёт на своём потоке случайности: иначе он зависит от того, сколько
   // чисел израсходовала раскладка, и меняется при любой правке структуры мира.
@@ -145,6 +154,13 @@ export function createWorld(seedCode) {
   group.add(portal.group);
 
   group.userData = { seed: code, structure, bounds, exitPosition: portal.group.position, palette, fogDensity };
+  group.userData.impossible = {
+    kind: imp.kind,
+    anchor: impAnchor,
+    center: impCenter,
+    count: imp.count,
+    seams: imp.seams.map((s) => ({ a: [s.a[0], s.a[1], s.a[2]], b: [s.b[0], s.b[1], s.b[2]] })),
+  };
 
   group.traverse((o) => {
     if (o.isPoints) {
