@@ -40,6 +40,15 @@ const TRACK_BAND = [1.5, 2.5];
 // форму мира, таблица ID лежит в N14. Порядок здесь дублируется намеренно: если он
 // разъедется с планом, сид начнёт выбирать не тот мир, и заметить это по картинке
 // почти невозможно. Проверяется только когда index.js уже существует.
+// Невидимые точки. Размер точки на экране считает шейдер в src/world/fieldMaterial.js:
+// gl_PointSize = size * (1 + 0.5 * uPulse) * (300 / глубина). При среднем uPulse 0.5 и
+// глубине, равной extent, это size * 1.25 * (300 / extent). Точка мельче пикселя не
+// рисуется вовсе, то есть съедает бюджет впустую. Если формула в шейдере поменяется,
+// поменять и здесь.
+const SHADER_SIZE_BASE = 300;
+const SHADER_PULSE_MID = 1.25;
+const TINY_SHARE_MAX = 0.05;
+
 const EXPECTED_ORDER = [
   'layoutFractalCorridors',
   'layoutNonEuclidean',
@@ -94,6 +103,31 @@ function halfSpan(res) {
   return m;
 }
 
+function tinyShare(res, extent) {
+  const pxPerScale = SHADER_PULSE_MID * (SHADER_SIZE_BASE / extent);
+  let tiny = 0;
+  for (let i = 0; i < res.count; i++) {
+    if (res.scales[i] * pxPerScale < 1) tiny++;
+  }
+  return res.count ? tiny / res.count : 0;
+}
+
+function radialProfile(res) {
+  const n = res.count, p = res.positions;
+  const rad = new Float64Array(n);
+  let maxR = 0;
+  for (let i = 0; i < n; i++) {
+    const d = Math.hypot(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
+    rad[i] = d;
+    if (d > maxR) maxR = d;
+  }
+  const shells = new Array(8).fill(0);
+  for (let i = 0; i < n; i++) {
+    shells[Math.min(7, Math.floor((rad[i] / (maxR || 1)) * 8))]++;
+  }
+  return shells.map(v => (n ? v / n : 0));
+}
+
 function signature(res) {
   const p = res.positions;
   const n = res.count;
@@ -145,6 +179,8 @@ function signature(res) {
 
 const positionHashes = new Map();
 const seenFns = new Set();
+const tinyRows = [];
+const profiles = [];
 const extentRows = [];
 const driftRows = [];
 
@@ -276,6 +312,18 @@ for (const file of files) {
           }
         }
 
+        // Точки, которые на своей же глубине мельче пикселя, бюджет тратят, а на экран
+        // не попадают. Один слой раскладок это уже проходил на дальнем поле «звёзд».
+        const tiny = tinyShare(res, 400);
+        tinyRows.push({ name, tiny });
+        if (tiny > TINY_SHARE_MAX) {
+          problems.push(name + ': ' + (tiny * 100).toFixed(0) + '% точек мельче пикселя на ' +
+            'глубине 400 (порог ' + (TINY_SHARE_MAX * 100) + '%). Такие точки не рисуются ' +
+            'вовсе: цель просит N точек, а на экран выходит меньше. Затемнять надо яркостью, ' +
+            'а не размером — размер ниже пикселя это не тусклая точка, а отсутствующая.');
+        }
+        profiles.push({ name, prof: radialProfile(res) });
+
         // Размер не должен зависеть от плотности.
         const spans = TARGETS.map(t => halfSpan(fn(rngMod.mulberry32(SEEDS[0]), { target: t })));
         const drift = (Math.max(...spans) - Math.min(...spans)) / (Math.max(...spans) || 1);
@@ -326,6 +374,34 @@ for (const r of extentRows) {
 for (const r of driftRows) {
   console.log(r.name.padEnd(24) + ' габарит по целям ' + r.spans.map(v => v.toFixed(0)).join('/') +
     ', разброс ' + (r.drift * 100).toFixed(0) + '% (допуск ' + (EXTENT_DRIFT_MAX * 100) + '%)');
+}
+
+for (const r of tinyRows) {
+  if (r.tiny > 0) {
+    console.log(r.name.padEnd(24) + ' точек мельче пикселя на глубине 400: ' +
+      (r.tiny * 100).toFixed(0) + '% (порог ' + (TINY_SHARE_MAX * 100) + '%)');
+  }
+}
+
+// Признак 3 из REFERENCE.md: восемь сидов дают восемь узнаваемо разных силуэтов.
+// Порогом это не назначаем — «узнаётся» решает глаз на N21. Но самые похожие пары
+// печатаем каждый прогон, чтобы близнецы не заводились незамеченными.
+if (profiles.length > 2) {
+  const pairs = [];
+  for (let a = 0; a < profiles.length; a++) {
+    for (let b = a + 1; b < profiles.length; b++) {
+      let d = 0;
+      for (let k = 0; k < 8; k++) d += Math.abs(profiles[a].prof[k] - profiles[b].prof[k]);
+      pairs.push({ a: profiles[a].name, b: profiles[b].name, d });
+    }
+  }
+  pairs.sort((x, y) => x.d - y.d);
+  console.log('самые похожие силуэты по профилю радиуса (справочно, не порог):');
+  for (const p of pairs.slice(0, 3)) {
+    console.log('  ' + p.a + ' <-> ' + p.b + ' = ' + p.d.toFixed(3));
+  }
+  console.log('  самая далёкая пара: ' + pairs[pairs.length - 1].a + ' <-> ' +
+    pairs[pairs.length - 1].b + ' = ' + pairs[pairs.length - 1].d.toFixed(3));
 }
 
 if (problems.length) {
