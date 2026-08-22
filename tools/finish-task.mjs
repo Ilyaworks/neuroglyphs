@@ -92,6 +92,18 @@ if (fs.existsSync('src/art/palettes.js')) {
   console.log('палитры в порядке');
 }
 
+// Признак 8 из REFERENCE.md: настроения различимы. Проверкой N26 были `node --check` и
+// world-check — обе проходит мир, в котором палитра посчитана и выброшена: цвет живёт
+// в uniform-ах, а world-check сравнивает атрибуты геометрии. Маркер двойной: обычно это
+// «world.js уже зовёт resolvePalette», но на самой N26 гейт обязателен независимо от кода,
+// иначе задачу можно закрыть, не подключив палитру ни к чему.
+if (fs.existsSync('src/art/palettes.js') && fs.existsSync('src/world/world.js') &&
+    (/resolvePalette/.test(fs.readFileSync('src/world/world.js', 'utf8')) || id === 'N26')) {
+  const r = run('node tools/mood-check.mjs');
+  if (!r.ok) refuse('палитра настроения не доходит до сцены', r.out);
+  console.log('палитра в сцене: настроения различимы на кадре');
+}
+
 // Проверка N24 — `node --check` плюс приёмка глазами. Между ними проходит setFisheye,
 // который пишет в общий шаблон шейдера вместо uniform-ов своего прохода: эффекта нет,
 // синтаксис безупречен, а глазами это выглядит как «дисторсия слабовата».

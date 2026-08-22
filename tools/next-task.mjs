@@ -133,6 +133,13 @@ function healthCheck() {
   if (fs.existsSync('src/render/shaders.js')) {
     checks.push(['дисторсии', 'node tools/shaders-check.mjs']);
   }
+  // Тот же порядок, что у post-check: гейт палитры в сцене входит в предстартовую проверку
+  // только после того, как world.js начал звать resolvePalette. До N26 он остановил бы
+  // саму задачу, которая его и закрывает.
+  if (fs.existsSync('src/art/palettes.js') && fs.existsSync('src/world/world.js') &&
+      /resolvePalette/.test(fs.readFileSync('src/world/world.js', 'utf8'))) {
+    checks.push(['палитра в сцене', 'node tools/mood-check.mjs']);
+  }
   // Предстартовая проверка стережёт от регресса, а не требует несделанного: до N24
   // в post.js нет ни одного ShaderPass, и включённый гейт остановил бы саму задачу,
   // которая его и закрывает.
