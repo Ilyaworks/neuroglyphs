@@ -55,6 +55,12 @@ function emitGlyphRing(list, center, normal1, normal2, radius, count, scale, rng
   }
 }
 
+function wallPointCount(length, height, glyphSpacing) {
+  const steps = Math.max(1, Math.floor(length / glyphSpacing));
+  const rows = Math.max(1, Math.floor(height / glyphSpacing));
+  return (steps + 1) * (rows + 1);
+}
+
 function emitWall(list, origin, dir, up, length, height, thickness, glyphSpacing, scale, rng) {
   const right = normalize([
     dir[1] * up[2] - dir[2] * up[1],
@@ -133,14 +139,24 @@ export function layoutFractalCorridors(rng, params = {}) {
   const main = randomUnit(rng);
   const root = { origin: [0, 0, 0], dir: main, length: corridorLength, radius, scale: baseScale, depthLeft: depth };
   const tree = buildCorridorTree(root, rng);
-  let totalArea = 0;
+  const walls = [];
   for (const c of tree) {
-    totalArea += 4 * c.length * (c.radius * 2.2);
+    const wallH = c.radius * 2.2;
+    for (let i = 0; i < 4; i++) {
+      walls.push({ length: c.length, height: wallH });
+    }
   }
-  const spacing = Math.sqrt(totalArea / target);
+  const predict = (s) =>
+    walls.reduce((n, w) => n + wallPointCount(w.length, w.height, s), 0) + 16 * tree.length;
+  let lo = 0.5, hi = 500;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (predict(mid) > target) lo = mid; else hi = mid;
+  }
+  const spacing = hi;
   const list = [];
   for (const c of tree) {
-    emitCorridor(list, c, spacing * (0.8 + rng() * 0.6), rng);
+    emitCorridor(list, c, spacing, rng);
   }
   const count = Math.min(MAX_POINTS, list.length / 4);
   const positions = new Float32Array(count * 3);
