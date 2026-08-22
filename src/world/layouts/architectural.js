@@ -1,5 +1,3 @@
-import { mulberry32 } from "../../core/rng.js";
-
 const MAX_POINTS = 300000;
 
 function pushPoint(list, x, y, z, s) {
@@ -18,10 +16,10 @@ function randomUnit(rng) {
   return normalize([u, v, w]);
 }
 
-function orthonormal(rng, base) {
+function orthonormal(base) {
   const b = normalize(base);
-  let helper = Math.abs(b[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-  let t1 = normalize([
+  const helper = Math.abs(b[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const t1 = normalize([
     b[1] * helper[2] - b[2] * helper[1],
     b[2] * helper[0] - b[0] * helper[2],
     b[0] * helper[1] - b[1] * helper[0],
@@ -34,7 +32,7 @@ function orthonormal(rng, base) {
   return [b, t1, t2];
 }
 
-function emitGlyphRing(list, center, axis, normal1, normal2, radius, count, scale, rng) {
+function emitGlyphRing(list, center, normal1, normal2, radius, count, scale, rng) {
   for (let i = 0; i < count; i++) {
     const t = count > 1 ? i / count : 0;
     const a = t * Math.PI * 2;
@@ -49,9 +47,9 @@ function emitGlyphRing(list, center, axis, normal1, normal2, radius, count, scal
     const jz = (rng() * 2 - 1) * jitter;
     pushPoint(
       list,
-      center[0] + axis[0] * 0 + nx * radius + jx,
-      center[1] + axis[1] * 0 + ny * radius + jy,
-      center[2] + axis[2] * 0 + nz * radius + jz,
+      center[0] + nx * radius + jx,
+      center[1] + ny * radius + jy,
+      center[2] + nz * radius + jz,
       scale * (0.7 + rng() * 0.6)
     );
   }
@@ -82,41 +80,68 @@ function emitWall(list, origin, dir, up, length, height, thickness, glyphSpacing
   }
 }
 
-function emitCorridor(list, origin, dir, length, radius, depth, scale, rng, params) {
-  const [b, t1, t2] = orthonormal(rng, dir);
-  const wallH = radius * 2.2;
-  const wallT = radius * 0.6;
-  const spacing = radius * (0.8 + rng() * 0.6);
-  emitWall(list, [origin[0] - t1[0] * radius, origin[1] - t1[1] * radius, origin[2] - t1[2] * radius], dir, t2, length, wallH, wallT, spacing, scale, rng);
-  emitWall(list, [origin[0] + t1[0] * radius, origin[1] + t1[1] * radius, origin[2] + t1[2] * radius], dir, t2, length, wallH, wallT, spacing, scale, rng);
-  emitWall(list, [origin[0] - t2[0] * radius, origin[1] - t2[1] * radius, origin[2] - t2[2] * radius], dir, t1, length, wallH, wallT, spacing, scale, rng);
-  emitWall(list, [origin[0] + t2[0] * radius, origin[1] + t2[1] * radius, origin[2] + t2[2] * radius], dir, t1, length, wallH, wallT, spacing, scale, rng);
-  emitGlyphRing(list, [origin[0] + dir[0] * length, origin[1] + dir[1] * length, origin[2] + dir[2] * length], dir, t1, t2, radius, 16, scale * 1.4, rng);
-
-  if (depth <= 0) return;
-  const branches = 1 + Math.floor(rng() * 2);
-  for (let i = 0; i < branches; i++) {
-    const bend = 0.5 + rng() * 0.9;
-    const axis = i === 0 ? t1 : t2;
-    const sign = rng() < 0.5 ? -1 : 1;
-    const nd = normalize([
-      dir[0] + axis[0] * bend * sign,
-      dir[1] + axis[1] * bend * sign,
-      dir[2] + axis[2] * bend * sign,
-    ]);
-    const end = [origin[0] + dir[0] * length, origin[1] + dir[1] * length, origin[2] + dir[2] * length];
-    emitCorridor(list, end, nd, length * (0.55 + rng() * 0.25), radius * (0.6 + rng() * 0.25), depth - 1, scale * 0.85, rng, params);
+function buildCorridorTree(root, rng) {
+  const tree = [root];
+  const stack = [root];
+  while (stack.length) {
+    const c = stack.pop();
+    if (c.depthLeft === 0) continue;
+    const branches = 1 + Math.floor(rng() * 2);
+    const [b, t1, t2] = orthonormal(c.dir);
+    for (let i = 0; i < branches; i++) {
+      const bend = 0.5 + rng() * 0.9;
+      const axis = i === 0 ? t1 : t2;
+      const sign = rng() < 0.5 ? -1 : 1;
+      const nd = normalize([
+        c.dir[0] + axis[0] * bend * sign,
+        c.dir[1] + axis[1] * bend * sign,
+        c.dir[2] + axis[2] * bend * sign,
+      ]);
+      const end = [c.origin[0] + c.dir[0] * c.length, c.origin[1] + c.dir[1] * c.length, c.origin[2] + c.dir[2] * c.length];
+      const child = {
+        origin: end,
+        dir: nd,
+        length: c.length * (0.55 + rng() * 0.25),
+        radius: c.radius * (0.6 + rng() * 0.25),
+        scale: c.scale * 0.85,
+        depthLeft: c.depthLeft - 1,
+      };
+      tree.push(child);
+      stack.push(child);
+    }
   }
+  return tree;
+}
+
+function emitCorridor(list, c, spacing, rng) {
+  const [b, t1, t2] = orthonormal(c.dir);
+  const wallH = c.radius * 2.2;
+  const wallT = c.radius * 0.6;
+  emitWall(list, [c.origin[0] - t1[0] * c.radius, c.origin[1] - t1[1] * c.radius, c.origin[2] - t1[2] * c.radius], c.dir, t2, c.length, wallH, wallT, spacing, c.scale, rng);
+  emitWall(list, [c.origin[0] + t1[0] * c.radius, c.origin[1] + t1[1] * c.radius, c.origin[2] + t1[2] * c.radius], c.dir, t2, c.length, wallH, wallT, spacing, c.scale, rng);
+  emitWall(list, [c.origin[0] - t2[0] * c.radius, c.origin[1] - t2[1] * c.radius, c.origin[2] - t2[2] * c.radius], c.dir, t1, c.length, wallH, wallT, spacing, c.scale, rng);
+  emitWall(list, [c.origin[0] + t2[0] * c.radius, c.origin[1] + t2[1] * c.radius, c.origin[2] + t2[2] * c.radius], c.dir, t1, c.length, wallH, wallT, spacing, c.scale, rng);
+  emitGlyphRing(list, [c.origin[0] + c.dir[0] * c.length, c.origin[1] + c.dir[1] * c.length, c.origin[2] + c.dir[2] * c.length], t1, t2, c.radius, 16, c.scale * 1.4, rng);
 }
 
 export function layoutFractalCorridors(rng, params = {}) {
-  const list = [];
+  const target = params.target ?? 20000;
   const radius = params.radius || 60;
   const depth = params.depth ?? 2;
   const corridorLength = params.corridorLength || 180;
   const baseScale = params.scale || 4;
   const main = randomUnit(rng);
-  emitCorridor(list, [0, 0, 0], main, corridorLength, radius, depth, baseScale, rng, params);
+  const root = { origin: [0, 0, 0], dir: main, length: corridorLength, radius, scale: baseScale, depthLeft: depth };
+  const tree = buildCorridorTree(root, rng);
+  let totalArea = 0;
+  for (const c of tree) {
+    totalArea += 4 * c.length * (c.radius * 2.2);
+  }
+  const spacing = Math.sqrt(totalArea / target);
+  const list = [];
+  for (const c of tree) {
+    emitCorridor(list, c, spacing * (0.8 + rng() * 0.6), rng);
+  }
   const count = Math.min(MAX_POINTS, list.length / 4);
   const positions = new Float32Array(count * 3);
   const scales = new Float32Array(count);
@@ -131,7 +156,7 @@ export function layoutFractalCorridors(rng, params = {}) {
 
 function emitCrystal(list, center, size, rng) {
   const axis = randomUnit(rng);
-  const [b, t1, t2] = orthonormal(rng, axis);
+  const [b, t1, t2] = orthonormal(axis);
   const facets = 5 + Math.floor(rng() * 4);
   const height = size * (1.5 + rng() * 1.5);
   const rings = 4 + Math.floor(rng() * 4);
@@ -156,10 +181,11 @@ function emitCrystal(list, center, size, rng) {
 }
 
 export function layoutCrystalline(rng, params = {}) {
-  const list = [];
-  const count = params.count ?? 80;
+  const target = params.target ?? 20000;
+  const count = params.count ?? Math.max(1, Math.round(target / 32));
   const radius = params.radius || 200;
   const baseSize = params.size || 10;
+  const list = [];
   for (let i = 0; i < count; i++) {
     const u = rng() * 2 - 1;
     const v = rng() * 2 - 1;
@@ -183,15 +209,17 @@ export function layoutCrystalline(rng, params = {}) {
 }
 
 export function layoutGeometric(rng, params = {}) {
-  const list = [];
-  const grid = params.grid ?? 9;
+  const target = params.target ?? 20000;
+  const occupancy = params.occupancy ?? 0.22;
+  const grid = params.grid ?? Math.max(4, Math.round(Math.cbrt(target / occupancy)) - 1);
   const extent = params.extent || 300;
   const spacing = extent / grid;
   const baseScale = params.scale || 3;
+  const list = [];
   for (let x = 0; x <= grid; x++) {
     for (let y = 0; y <= grid; y++) {
       for (let z = 0; z <= grid; z++) {
-        if (rng() < (params.occupancy ?? 0.22)) {
+        if (rng() < occupancy) {
           const px = (x - grid / 2) * spacing + (rng() * 2 - 1) * spacing * 0.08;
           const py = (y - grid / 2) * spacing + (rng() * 2 - 1) * spacing * 0.08;
           const pz = (z - grid / 2) * spacing + (rng() * 2 - 1) * spacing * 0.08;
