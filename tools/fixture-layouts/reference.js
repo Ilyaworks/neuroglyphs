@@ -7,11 +7,13 @@
 // Из src/ не импортируется и импортироваться не должна.
 export function layoutReferenceGrid(rng, params = {}) {
   const target = params.target ?? 20000;
-  const extent = params.extent || 300;
+  // extent — радиус заполняемого объёма, то есть максимальное удаление точки от центра.
+  // Сторона куба вдвое больше. Договорённость общая для всех раскладок.
+  const extent = params.extent ?? 400;
   const occupancy = params.occupancy ?? 0.22;
   // Сколько ячеек нужно, чтобы при данной занятости выйти на target.
   const grid = Math.max(4, Math.round(Math.cbrt(target / occupancy)) - 1);
-  const spacing = extent / grid;
+  const spacing = (extent * 2) / grid;
   const xs = [];
   for (let x = 0; x <= grid; x++) {
     for (let y = 0; y <= grid; y++) {

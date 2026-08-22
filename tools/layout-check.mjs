@@ -25,6 +25,17 @@ const DIR = dirArg || 'src/world/layouts';
 // потому что плотность поля берётся из сида и меняется от мира к миру.
 const TARGETS = [1500, 5000, 20000, 31500];
 const TOLERANCE = 0.30;
+// Размер. `params.extent` — радиус объёма, который раскладка должна заполнить, то есть
+// максимальное удаление точки от центра. Поле в мире имеет радиус 400, поэтому это и
+// значение по умолчанию. Два требования: раскладка слушается extent, и размер не зависит
+// от плотности — цель меняет число точек, а не габарит.
+const EXTENTS = [200, 400];
+const EXTENT_BAND = [0.6, 1.5];
+const EXTENT_DRIFT_MAX = 0.15;
+// Попадание в полосу ещё не значит, что extent слушают: раскладка с фиксированным
+// размером может случайно попасть в допуск на обоих значениях. Поэтому отдельно
+// требуем, чтобы габарит следил за заказом — при удвоении extent он обязан удвоиться.
+const TRACK_BAND = [1.5, 2.5];
 // Сидов несколько не для красоты: у раскладки с ветвящимся деревом отклонение зависит
 // от формы дерева, и на одном сиде проверка проходила, пока каждый шестой сид выходил
 // за допуск. Требуем допуск на всех сидах и печатаем худший.
@@ -56,6 +67,17 @@ function hash(arr) {
     x = Math.imul(x, 16777619) >>> 0;
   }
   return x >>> 0;
+}
+
+function halfSpan(res) {
+  let m = 0;
+  for (let i = 0; i < res.count; i++) {
+    for (let k = 0; k < 3; k++) {
+      const v = Math.abs(res.positions[i * 3 + k]);
+      if (v > m) m = v;
+    }
+  }
+  return m;
 }
 
 function signature(res) {
@@ -108,6 +130,8 @@ function signature(res) {
 }
 
 const positionHashes = new Map();
+const extentRows = [];
+const driftRows = [];
 
 for (const file of files) {
   const rel = DIR + '/' + file;
@@ -176,6 +200,45 @@ for (const file of files) {
       }
 
       if (target === TARGETS[TARGETS.length - 1]) {
+        // Слушается ли extent.
+        for (const extent of EXTENTS) {
+          const r = fn(rngMod.mulberry32(SEEDS[0]), { target, extent });
+          const half = halfSpan(r);
+          const ratio = half / extent;
+          extentRows.push({ name, extent, half, ratio });
+          if (ratio < EXTENT_BAND[0] || ratio > EXTENT_BAND[1]) {
+            problems.push(name + ': при extent ' + extent + ' габарит вышел ' + half.toFixed(0) +
+              ' от центра, это ' + ratio.toFixed(2) + ' от заказанного при допустимой полосе ' +
+              EXTENT_BAND[0] + '..' + EXTENT_BAND[1] + '. Поле в мире радиусом 400, и раскладка ' +
+              'обязана слушаться extent, иначе сборка не сможет попросить у неё нужный объём.');
+          }
+        }
+        // Следит ли габарит за заказанным размером, а не просто попал в полосу.
+        const small = extentRows[extentRows.length - 2];
+        const large = extentRows[extentRows.length - 1];
+        if (small && large && small.half > 0) {
+          const track = large.half / small.half;
+          console.log(name.padEnd(24) + ' при удвоении extent габарит изменился в ' +
+            track.toFixed(2) + ' раза (нужно ' + TRACK_BAND[0] + '..' + TRACK_BAND[1] + ')');
+          if (track < TRACK_BAND[0] || track > TRACK_BAND[1]) {
+            problems.push(name + ': extent удвоили, а габарит изменился в ' + track.toFixed(2) +
+              ' раза (' + small.half.toFixed(0) + ' -> ' + large.half.toFixed(0) + '). ' +
+              'Значит параметр размера не слушают вовсе, и попадание в полосу — случайность.');
+          }
+        }
+
+        // Размер не должен зависеть от плотности.
+        const spans = TARGETS.map(t => halfSpan(fn(rngMod.mulberry32(SEEDS[0]), { target: t })));
+        const drift = (Math.max(...spans) - Math.min(...spans)) / (Math.max(...spans) || 1);
+        driftRows.push({ name, spans, drift });
+        if (drift > EXTENT_DRIFT_MAX) {
+          problems.push(name + ': габарит зависит от числа точек — по целям ' +
+            TARGETS.join('/') + ' он вышел ' + spans.map(v => v.toFixed(0)).join('/') +
+            ' (разброс ' + (drift * 100).toFixed(0) + '% при допуске ' +
+            (EXTENT_DRIFT_MAX * 100) + '%). Цель задаёт плотность, а не размер: при малой ' +
+            'плотности мир не должен съёживаться в комок у камеры.');
+        }
+
         const again = fn(rngMod.mulberry32(SEEDS[0]), { target });
         const other = fn(rngMod.mulberry32(SEED_OTHER), { target });
         const h = hash(res.positions);
@@ -204,6 +267,16 @@ for (const r of rows) {
     ', занято вокселей ' + r.sig.occupancy.toFixed(3) +
     ', анизотропия ' + r.sig.anisotropy.toFixed(2) +
     ', scale ' + r.sig.scaleMin.toFixed(2) + '..' + r.sig.scaleMax.toFixed(2));
+}
+
+for (const r of extentRows) {
+  console.log(r.name.padEnd(24) + ' extent ' + String(r.extent).padStart(4) +
+    ' -> габарит ' + r.half.toFixed(0).padStart(5) + ' от центра, это ' + r.ratio.toFixed(2) +
+    ' от заказанного (полоса ' + EXTENT_BAND[0] + '..' + EXTENT_BAND[1] + ')');
+}
+for (const r of driftRows) {
+  console.log(r.name.padEnd(24) + ' габарит по целям ' + r.spans.map(v => v.toFixed(0)).join('/') +
+    ', разброс ' + (r.drift * 100).toFixed(0) + '% (допуск ' + (EXTENT_DRIFT_MAX * 100) + '%)');
 }
 
 if (problems.length) {
