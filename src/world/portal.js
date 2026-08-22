@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mulberry32, strToSeed } from "../core/rng.js";
 import { GLYPHS } from "../core/glyphs.js";
+import { decodeSeed } from "../core/seed.js";
 import { buildFieldMaterial } from "./fieldMaterial.js";
 
 // Формы отверстия портала. Каждая — замкнутый контур в единичных координатах:
@@ -70,19 +71,23 @@ function sampleShape(fn, n) {
 // шаг выбирается так, чтобы полоса была сплошной.
 function rectPerimeter(halfW, halfH, step, rng) {
   const pts = [];
-  const per = 2 * (halfW + halfH);
+  const per = 4 * (halfW + halfH);
   const n = Math.max(16, Math.floor(per / step));
   for (let i = 0; i < n; i++) {
-    let d = (i / n) * per;
+    const d = (i / n) * per;
     let x, y;
     if (d < halfW * 2) {
+      // верхняя сторона: слева направо
       x = -halfW + d; y = halfH;
     } else if (d < halfW * 2 + halfH * 2) {
-      d -= halfW * 2; x = halfW; y = halfH - d;
-    } else if (d < halfW * 3 + halfH * 2) {
-      d -= halfW * 2 + halfH * 2; x = halfW - d; y = -halfH;
+      // правая сторона: сверху вниз
+      x = halfW; y = halfH - (d - halfW * 2);
+    } else if (d < halfW * 4 + halfH * 2) {
+      // нижняя сторона: справа налево
+      x = halfW - (d - halfW * 2 - halfH * 2); y = -halfH;
     } else {
-      d -= halfW * 3 + halfH * 2; x = -halfW; y = -halfH + d;
+      // левая сторона: снизу вверх
+      x = -halfW; y = -halfH + (d - halfW * 4 - halfH * 2);
     }
     // лёгкий разброс в глубину, чтобы полоса имела объём
     pts.push([x, y, (rng() - 0.5) * 6]);
@@ -101,14 +106,19 @@ function makeCombo(exit, rng) {
 }
 
 export function buildExitPortal(seed, atlas) {
-  // seed — поля сида (decodeSeed) или готовый код. Нормализуем в код,
-  // чтобы отдельный поток генерации не зависел от расхода общего rng.
-  const code = typeof seed === "string" ? seed : null;
-  const exit = typeof seed === "object" && seed !== null ? seed.exit : 0;
+  // seed — поля сида (decodeSeed) или готовый код. Оба вида нормализуем в exit,
+  // чтобы и форма, и поток генерации зависели от сида одинаково.
+  let exit = 0;
+  if (typeof seed === "string") {
+    const fields = decodeSeed(seed);
+    if (fields) exit = fields.exit;
+  } else if (seed && typeof seed === "object" && Number.isFinite(seed.exit)) {
+    exit = seed.exit;
+  }
 
   // СВОЙ поток от сида: портал генерируется после раскладки, и остаток общего
   // rng зависит от структуры мира. Свой поток — детерминизм независимо от неё.
-  const rng = mulberry32(strToSeed((code || "portal") + ":portal"));
+  const rng = mulberry32(strToSeed(exit + ":portal"));
 
   const group = new THREE.Group();
   group.name = "exit-portal";
@@ -140,7 +150,7 @@ export function buildExitPortal(seed, atlas) {
   barGeo.setAttribute("size", new THREE.BufferAttribute(barSize, 1));
   barGeo.setAttribute("offset", new THREE.BufferAttribute(barOff, 1));
   barGeo.computeBoundingSphere();
-  const { material: barMat, uniforms: barUniforms } = buildFieldMaterial(atlas, { fogDensity: 0.0004 });
+  const { material: barMat, uniforms } = buildFieldMaterial(atlas, { fogDensity: 0.0004 });
   const bars = new THREE.Points(barGeo, barMat);
   bars.frustumCulled = false;
   group.add(bars);
@@ -169,6 +179,8 @@ export function buildExitPortal(seed, atlas) {
   holeGeo.setAttribute("offset", new THREE.BufferAttribute(holeOff, 1));
   holeGeo.computeBoundingSphere();
   const { material: holeMat } = buildFieldMaterial(atlas, { fogDensity: 0.0004 });
+  holeMat.uniforms.uPulse = uniforms.uPulse;
+  holeMat.uniforms.uTime = uniforms.uTime;
   const hole = new THREE.Points(holeGeo, holeMat);
   hole.frustumCulled = false;
   group.add(hole);
@@ -193,11 +205,11 @@ export function buildExitPortal(seed, atlas) {
     return colorOk && filled[1] === combo.object && filled[2] === combo.sound && filled[3] === combo.formula;
   }
 
-  // Позиция портала: за дальним краем мира, по оси Z.
+  // Позиция портала: на границе поля, по оси Z. Конкретное место ставит N18.
   const position = new THREE.Vector3(0, 0, 120);
 
-  group.userData = { seed: code, exit, shapeIdx, combo, slots, barUniforms };
+  group.userData = { exit, shapeIdx, combo, slots, uniforms };
   group.position.copy(position);
 
-  return { group, combo, slots, isSolved, position };
+  return { group, combo, slots, isSolved, position, uniforms };
 }
