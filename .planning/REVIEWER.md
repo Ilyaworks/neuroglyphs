@@ -49,12 +49,15 @@ cd /c/neuroglyphs && git log --oneline -5 && git status --short && node tools/re
 | `node tools/geometry-check.mjs` | `fieldGeometry` вызывается по-настоящему: атрибуты заполнены, чанки, boundingSphere, `ready` оседает | `GEOMETRY_OK` |
 | `node tools/material-check.mjs` | шейдер рисует **глифы**, а не залитые квадраты — замер пикселей спрайта | `MATERIAL_OK` |
 | `node tools/layout-check.mjs` | раскладки: цель по точкам, размер по `extent`, детерминизм, невидимые точки, порядок `LAYOUTS` | `LAYOUT_OK` |
+| `node tools/portal-check.mjs` | портал: рамка из четырёх сторон, зависимость от сида, `isSolved` | `PORTAL_OK` |
+| `node tools/flycam-check.mjs` | полёт: клавиши, плавность, потеря фокуса, `dispose` | `FLYCAM_OK` |
 | `node tools/world-check.mjs` | тот же сид = тот же мир, глубина читается, каждое облако видно | `WORLD_OK` |
 | `node tools/browser-check.mjs` | страница без ошибок, непустой кадр, fps, скриншот | `PAGE_OK` |
 
 **У каждого гейта есть эталон.** Инструмент, который не проходит ни на чём, ничего не
-проверяет. `material-check --mod tools/fixture-material.js` и
-`layout-check --dir tools/fixture-layouts` обязаны быть зелёными. Заводя новый гейт,
+проверяет. `material-check --mod tools/fixture-material.js`,
+`layout-check --dir tools/fixture-layouts`, `portal-check --mod tools/fixture-portal.js`
+и `flycam-check --mod tools/fixture-flycam.js` обязаны быть зелёными. Заводя новый гейт,
 заводи и то, на чём он зелёный, и проверяй обе ветки.
 
 **Пороги трогать нельзя** — ни модели, ни мне без замера. Прежде чем ставить порог,

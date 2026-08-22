@@ -84,6 +84,14 @@ if (fs.existsSync('src/world/world.js')) {
   console.log('мир в порядке: сид детерминирован, глубина читается');
 }
 
+// У N19 проверкой был только `node --check`, а модуль до поздней задачи никем не
+// импортируется — то же сочетание, которым закрылась неработающей N09.
+if (fs.existsSync('src/player/flycam.js')) {
+  const r = run('node tools/flycam-check.mjs');
+  if (!r.ok) refuse('полёт камеры не проходит проверку', r.out);
+  console.log('полёт камеры в порядке');
+}
+
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   const worldReady = fs.existsSync('src/world/world.js');
   const extra = worldReady ? ' --expect-content' : '';
