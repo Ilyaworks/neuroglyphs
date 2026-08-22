@@ -134,6 +134,15 @@ if (fs.existsSync('src/world/shapeCatalog.js') && fs.existsSync('tools/shape-che
 // Невозможные фигуры — единственное в проекте, что нельзя принять глазами: разница между
 // треугольником Пенроуза и кривой рамкой это один-два пикселя в проекции. Гейт проецирует
 // швы из точки привязки сам.
+// Фигура в мире: гейт модуля зелен и на фигуре размером в точку — он мерит модуль, а не
+// сцену. figure-check проецирует швы из настоящей камеры и мерит экранный размер.
+if (fs.existsSync('src/world/world.js') &&
+    /buildImpossible/.test(fs.readFileSync('src/world/world.js', 'utf8'))) {
+  const r = run('node tools/figure-check.mjs');
+  if (!r.ok) refuse('невозможная фигура в мире не проходит проверку', r.out);
+  console.log('фигура в мире в порядке: видна от входа, швы сходятся из настоящей камеры');
+}
+
 if (fs.existsSync('src/atmosphere/impossible.js')) {
   const r = run('node tools/impossible-check.mjs');
   if (!r.ok) refuse('невозможные фигуры не проходят проверку', r.out);

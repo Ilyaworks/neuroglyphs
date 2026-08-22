@@ -156,6 +156,10 @@ function healthCheck() {
   if (fs.existsSync('src/world/shapeField.js')) {
     checks.push(['слой форм', 'node tools/shapefield-check.mjs']);
   }
+  if (fs.existsSync('src/world/world.js') &&
+      /buildImpossible/.test(fs.readFileSync('src/world/world.js', 'utf8'))) {
+    checks.push(['фигура в мире', 'node tools/figure-check.mjs']);
+  }
   if (fs.existsSync('src/atmosphere/impossible.js')) {
     checks.push(['невозможные фигуры', 'node tools/impossible-check.mjs']);
   }
