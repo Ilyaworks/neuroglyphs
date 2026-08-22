@@ -127,6 +127,9 @@ function healthCheck() {
   if (fs.existsSync('src/world/world.js')) {
     checks.push(['мир на экране', 'node tools/world-check.mjs']);
   }
+  if (fs.existsSync('src/art/palettes.js')) {
+    checks.push(['палитры настроений', 'node tools/palette-check.mjs']);
+  }
   if (fs.existsSync('src/render/shaders.js')) {
     checks.push(['дисторсии', 'node tools/shaders-check.mjs']);
   }

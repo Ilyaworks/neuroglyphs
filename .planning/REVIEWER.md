@@ -51,6 +51,7 @@ cd /c/neuroglyphs && git log --oneline -5 && git status --short && node tools/re
 | `node tools/layout-check.mjs` | раскладки: цель по точкам, размер по `extent`, детерминизм, невидимые точки, порядок `LAYOUTS` | `LAYOUT_OK` |
 | `node tools/portal-check.mjs` | портал: рамка из четырёх сторон, зависимость от сида, `isSolved` | `PORTAL_OK` |
 | `node tools/shaders-check.mjs` | дисторсии: ноль — тождественность, бочка тянет к центру, каналы расходятся радиально | `SHADERS_OK` |
+| `node tools/palette-check.mjs` | палитры: вызов не падает, туман в единицах сцены, контраст к фону, все настроения достижимы | `PALETTE_OK` |
 | `node tools/post-check.mjs` | связка: порядок проходов, выключены по умолчанию, `setFisheye`/`setChroma` доходят до кадра | `POST_OK` |
 | `node tools/flycam-check.mjs` | полёт: клавиши, мышь, плавность, потеря фокуса, `dispose` | `FLYCAM_OK` |
 | `node tools/freeze-check.mjs` | осмотр: третье лицо, вращение, колесо, точный возврат | `FREEZE_OK` |
@@ -62,8 +63,8 @@ cd /c/neuroglyphs && git log --oneline -5 && git status --short && node tools/re
 проверяет. `material-check --mod tools/fixture-material.js`,
 `layout-check --dir tools/fixture-layouts`, `portal-check --mod tools/fixture-portal.js`,
 `flycam-check --mod tools/fixture-flycam.js`, `freeze-check --mod tools/fixture-freeze.js`
-`shaders-check --mod tools/fixture-shaders.js` и `post-check --mod tools/fixture-post.js`
-обязаны быть зелёными. Заводя новый гейт,
+`shaders-check --mod tools/fixture-shaders.js`, `post-check --mod tools/fixture-post.js`
+и `palette-check --mod tools/fixture-palettes.js` обязаны быть зелёными. Заводя новый гейт,
 заводи и то, на чём он зелёный, и проверяй обе ветки.
 
 **Пороги трогать нельзя** — ни модели, ни мне без замера. Прежде чем ставить порог,
