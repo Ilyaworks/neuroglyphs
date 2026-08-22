@@ -794,7 +794,7 @@ rim, accent }`.
 
 ## N27 — Возврат каталога форм
 
-**Файлы:** восстановить `src/world/shapeCatalog.js`, `src/world/legacyShapes.js`, `src/world/shapePatch.js`, `src/world/allShapes.js`, `tools/shape-check.mjs`, `tools/pick-dense-shapes.mjs`, создать `src/world/shapeField.js`, правка `tools/audit-task.mjs`
+**Файлы:** восстановить `src/world/shapeCatalog.js`, `src/world/legacyShapes.js`, `src/world/shapePatch.js`, `src/world/allShapes.js`, `tools/shape-check.mjs`, `tools/pick-dense-shapes.mjs`, создать `src/world/shapeField.js`
 **Читать:** `src/world/fieldGeometry.js`
 **Метки:** `area:world`, `epic:D2`
 

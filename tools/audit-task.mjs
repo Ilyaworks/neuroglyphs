@@ -10,7 +10,19 @@ import { execSync } from 'node:child_process';
 
 const NL = String.fromCharCode(10);
 const id = (process.argv[2] || '').toUpperCase();
-const issues = fs.readFileSync('.planning/ISSUES.md', 'utf8');
+
+// Текст задачи берётся из последнего коммита, а не с диска. Причина: список разрешённых
+// файлов лежит в том же файле, который модель может править, и на N27 это уже произошло —
+// в строку «Файлы:» дописали «правка tools/audit-task.mjs», после чего аудит перестал
+// возражать против правки самого аудита. Контракт задачи должен быть тем, что подписано
+// до начала работы, иначе он не контракт.
+const issues = (() => {
+  try {
+    return execSync('git show HEAD:.planning/ISSUES.md', { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  } catch {
+    return fs.readFileSync('.planning/ISSUES.md', 'utf8');
+  }
+})();
 
 const body = (() => {
   const from = issues.indexOf('## ' + id + ' — ');
@@ -37,6 +49,14 @@ const ALWAYS_OK = [
   'package-lock.json',
 ];
 
+// Правка собственных правил — всегда стоп, независимо от списка файлов. Список живёт
+// в этом же файле, поэтому разрешить его правку значит разрешить всё.
+if (changed.includes('.planning/ISSUES.md')) {
+  blockers.push('менялся .planning/ISSUES.md — это текст задач, его правит только ' +
+    'проверяющий. Если условие задачи неверное или невыполнимое, задачу не закрывают: ' +
+    'печатают ПРОВАЛ ' + id + ' и передают вывод Клоду.');
+}
+
 for (const f of changed) {
   if (ALWAYS_OK.some(p => f.startsWith(p))) continue;
   if (allowed.some(a => f === a || f.endsWith('/' + a))) continue;
@@ -54,7 +74,17 @@ for (const f of changed) {
   const src = fs.readFileSync(f, 'utf8');
   const lines = src.split(/\r?\n/).length;
 
-  const codeSrc = src.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Сначала выкусываются строковые литералы, потом комментарии. Порядок важен: если резать
+  // по «//» первым, то строка вида fetch("http://x"); Math.random() обрубится на адресе,
+  // и настоящий вызов уедет вместе с «комментарием». Комментарии выкусываются потому, что
+  // восстановленный каталог начинается со слов «без импортов и Math.random()», и аудит
+  // спотыкался о собственное же правило, записанное словами.
+  const codeSrc = src
+    .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/g, '``')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '');
   if (/Math\.random\s*\(/.test(codeSrc)) {
     blockers.push(f + ': найден Math.random() — нарушен инвариант 1, генерация должна ' +
       'быть детерминированной');
