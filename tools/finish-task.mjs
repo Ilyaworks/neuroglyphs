@@ -68,6 +68,15 @@ if (fs.existsSync('src/world/layouts')) {
   console.log('раскладки в порядке');
 }
 
+// У N17 проверкой был только `node --check`: портал, собранный одинаково во всех мирах
+// и с рамкой из двух сторон вместо четырёх, проходил её молча. Ключевое здесь —
+// зависимость от сида и замкнутость рамки, а не синтаксис.
+if (fs.existsSync('src/world/portal.js')) {
+  const r = run('node tools/portal-check.mjs');
+  if (!r.ok) refuse('портал выхода не проходит проверку', r.out);
+  console.log('портал в порядке');
+}
+
 // Детерминизм по сиду (правило 7) и читаемость глубины — признак 2 в REFERENCE.md.
 if (fs.existsSync('src/world/world.js')) {
   const r = run('node tools/world-check.mjs');

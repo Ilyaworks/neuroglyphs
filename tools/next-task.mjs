@@ -106,6 +106,9 @@ function healthCheck() {
   if (fs.existsSync('src/world/layouts')) {
     checks.push(['раскладки', 'node tools/layout-check.mjs']);
   }
+  if (fs.existsSync('src/world/portal.js')) {
+    checks.push(['портал выхода', 'node tools/portal-check.mjs']);
+  }
   if (fs.existsSync('src/world/world.js')) {
     checks.push(['мир на экране', 'node tools/world-check.mjs']);
   }
