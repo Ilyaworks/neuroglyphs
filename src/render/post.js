@@ -11,7 +11,7 @@ export function buildComposer(renderer, scene, camera) {
 
   const halfWidth = Math.max(1, Math.floor(window.innerWidth / 2));
   const halfHeight = Math.max(1, Math.floor(window.innerHeight / 2));
-  const bloomPass = new UnrealBloomPass(new THREE.Vector2(halfWidth, halfHeight), 0.9, 0.5, 0.15);
+  const bloomPass = new UnrealBloomPass(new THREE.Vector2(halfWidth, halfHeight), 0.45, 0.4, 0.8);
   composer.addPass(bloomPass);
   const fisheyePass = new ShaderPass(FisheyeShader);
   const chromaPass = new ShaderPass(ChromaShader);
