@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createWorld } from "./world/world.js";
+import { buildComposer } from "./render/post.js";
 
 const canvas = document.getElementById("scene");
 
@@ -42,9 +43,12 @@ function resize() {
   renderer.setSize(width, height);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+  post.resize(width, height);
 }
 
 window.addEventListener("resize", resize);
+
+const post = buildComposer(renderer, scene, camera);
 
 let lastTime = performance.now();
 
@@ -52,7 +56,7 @@ function tick(now) {
   const dt = Math.min(Math.max((now - lastTime) / 1000, 0), 0.1);
   lastTime = now;
   for (const fn of frameFns) fn(dt);
-  renderer.render(scene, camera);
+  post.composer.render();
   requestAnimationFrame(tick);
 }
 
