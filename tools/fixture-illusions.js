@@ -70,5 +70,71 @@ const SHAPES = {};
 for (let k = 0; k < 8; k++) SHAPES['coreGapRing' + (k + 1)] = coreGapRing(k);
 for (let k = 0; k < 12; k++) SHAPES['hollowShell' + (k + 1)] = hollowShell(k);
 
+// Четыре формы с настоящей структурой: без них у набора не будет разброса, а гейт требует
+// именно его — двадцать оболочек с разными параметрами это один приём, а не двадцать форм.
+// Имена нарочно бытовые: эталон не должен прикидываться бутылкой Клейна.
+const structured = {
+  ribbonKnot: (i, p, out) => {
+    const t = ((i % 6000) / 6000) * TAU * 3;
+    const R = p.radius * 0.6, r = p.radius * 0.22;
+    const u = h(i * 5 + 17) * TAU, w = h(i * 5 + 29);
+    const cx = (R + r * Math.cos(3 * t)) * Math.cos(2 * t);
+    const cy = r * Math.sin(3 * t) * 1.4;
+    const cz = (R + r * Math.cos(3 * t)) * Math.sin(2 * t);
+    const tube = p.radius * 0.06 * Math.cbrt(w);
+    out[0] = cx + tube * Math.cos(u);
+    out[1] = cy + tube * Math.sin(u);
+    out[2] = cz + tube * Math.cos(u * 1.7);
+  },
+  slabGrid: (i, p, out) => {
+    const n = 22;
+    const x = i % n, y = Math.floor(i / n) % 3, z = Math.floor(i / (n * 3)) % n;
+    out[0] = (x / (n - 1) - 0.5) * 2 * p.radius;
+    out[1] = (y - 1) * p.radius * 0.08;
+    out[2] = (z / (n - 1) - 0.5) * 2 * p.radius;
+  },
+  spiralSheet: (i, p, out) => {
+    const t = ((i % 6000) / 6000);
+    const a = t * TAU * 5;
+    const r = p.radius * (0.15 + 0.85 * t);
+    // Лист, а не линия: разброс поперёк и по радиусу, иначе барьер объёма не пройден.
+    const j = (h(i * 11 + 3) - 0.5) * p.radius * 0.30;
+    const rj = r + (h(i * 11 + 9) - 0.5) * p.radius * 0.22;
+    out[0] = Math.cos(a) * rj;
+    out[1] = (t - 0.5) * p.radius * 1.2 + j;
+    out[2] = Math.sin(a) * rj;
+  },
+  cageEdges: (i, p, out) => {
+    // Только рёбра куба: направления заняты не все, в отличие от шарового слоя.
+    const R = p.radius;
+    const edge = i % 12;
+    const t = h(i * 13 + 7) * 2 - 1;
+    const c = [[t, -1, -1], [t, 1, -1], [t, -1, 1], [t, 1, 1],
+               [-1, t, -1], [1, t, -1], [-1, t, 1], [1, t, 1],
+               [-1, -1, t], [1, -1, t], [-1, 1, t], [1, 1, t]][edge];
+    // Бруски, а не проволока: тонкие рёбра барьер объёма не проходят, и правильно.
+    const j = p.radius * 0.22;
+    out[0] = c[0] * R + (h(i * 17 + 1) - 0.5) * j;
+    out[1] = c[1] * R + (h(i * 17 + 2) - 0.5) * j;
+    out[2] = c[2] * R + (h(i * 17 + 3) - 0.5) * j;
+  },
+};
+for (const [k, fn] of Object.entries(structured)) SHAPES[k] = fn;
+
+const extra = {
+  jetCone: (i, p, out) => {
+    // Узкая струя вдоль одной оси: занята малая часть направлений, разброс по секторам
+    // получается кратно выше, чем у любого шарового слоя.
+    const t = h(i * 19 + 5);
+    const a = h(i * 19 + 11) * TAU;
+    const spread = 0.14 * Math.sqrt(h(i * 19 + 23));
+    const r = p.radius * (0.1 + 0.9 * t);
+    out[0] = r * spread * Math.cos(a);
+    out[1] = r;
+    out[2] = r * spread * Math.sin(a);
+  },
+};
+for (const [k, fn] of Object.entries(extra)) SHAPES[k] = fn;
+
 export const ILLUSION_SHAPES = SHAPES;
 export const ILLUSION_KEYS = Object.keys(SHAPES);

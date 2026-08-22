@@ -307,18 +307,40 @@ if (!same) {
     'в Math.random или Date.now внутри формы либо в общем изменяемом состоянии слоя.');
 }
 
-// 7. Если каталог уже на месте, имена форм обязаны быть его именами: слой — тонкий слой
-// над каталогом, а не свой набор форм.
+// 7. Имена форм обязаны быть именами каталога или нового набора: слой — тонкий слой над
+// ними, а не собственный склад форм.
+//
+// Новый набор тут появился не сразу: N63 просит брать формы из объединения
+// { ...SHAPES, ...ILLUSION_SHAPES }, а сверка знала только каталог — и объявляла чужими
+// ровно те формы, которые задача просила добавить. На этом N63 и встала, правильно.
+// На эталоне сверка имён пропускается: у него свой встроенный набор из восьми форм, он
+// существует для арифметики контракта, а не как источник форм мира. Пока каталога в проекте
+// не было, эта ветка молчала сама, и расхождение не вылезало.
 const CATALOG = 'src/world/shapeCatalog.js';
-if (fs.existsSync(CATALOG) && keys) {
+const EXTRA = 'src/world/shapeIllusions.js';
+if (fs.existsSync(CATALOG) && keys && !LOCAL.startsWith('tools/')) {
   try {
     const cat = await import(pathToFileURL(path.resolve(CATALOG)).href);
     const known = new Set(cat.SHAPE_KEYS || Object.keys(cat.SHAPES || {}));
-    console.log('форм в каталоге: ' + known.size);
+    const fromCatalog = known.size;
+    let fromExtra = 0;
+    if (fs.existsSync(EXTRA)) {
+      try {
+        const ill = await import(pathToFileURL(path.resolve(EXTRA)).href);
+        const extraKeys = Object.keys(ill.ILLUSION_SHAPES || ill.SHAPES || {});
+        fromExtra = extraKeys.length;
+        for (const k of extraKeys) known.add(k);
+      } catch (e) {
+        console.log('новый набор форм не импортируется: ' + e.message);
+      }
+    }
+    console.log('форм, которые слой вправе отдавать: ' + known.size +
+      ' (каталог ' + fromCatalog + ', новый набор ' + fromExtra + ')');
     const alien = [...new Set(clouds.map(c => c.key).filter(Boolean))].filter(k => !known.has(k));
     if (known.size && alien.length) {
-      bad('слой отдаёт формы, которых нет в каталоге: ' + alien.slice(0, 5).join(', ') +
-        '. Каталог из 64 отобранных форм — источник, свои формы тут не нужны.');
+      bad('слой отдаёт формы, которых нет ни в каталоге, ни в новом наборе: ' +
+        alien.slice(0, 5).join(', ') + '. Источник форм — эти два файла, свои формы в слое ' +
+        'не нужны.');
     }
   } catch (e) {
     console.log('каталог не импортируется, сверку имён пропускаю: ' + e.message);

@@ -1,11 +1,15 @@
 import { SHAPES, SHAPE_KEYS } from './shapeCatalog.js';
+import { ILLUSION_SHAPES } from './shapeIllusions.js';
+
+const ALL_SHAPES = { ...SHAPES, ...ILLUSION_SHAPES };
+const ALL_KEYS = Object.keys(ALL_SHAPES);
 
 export function buildShapeField(fields, opts = {}) {
   const count = Math.max(1, Math.floor(opts.count ?? 6000));
   const extent = opts.extent ?? 400;
   const shape = Number.isInteger(fields && fields.shape) ? fields.shape : 0;
-  const key = SHAPE_KEYS[shape % SHAPE_KEYS.length];
-  const fn = SHAPES[key];
+  const key = ALL_KEYS[shape % ALL_KEYS.length];
+  const fn = ALL_SHAPES[key];
   const params = {
     radius: extent * 0.5,
     flatten: 0.8,
