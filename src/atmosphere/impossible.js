@@ -56,7 +56,7 @@ function beamsEscherStairs(anchor, center, L) {
 // В пространстве это разомкнутая гребёнка; из точки привязки читается как вилка,
 // у которой один зуб — продолжение двух других.
 function beamsImpossibleFork(anchor, center, L) {
-  const t = L * 0.35;
+  const t = L * 0.8;
   const z0 = -L * 0.3;
   const z1 = L * 0.9;
   const A = add(center, [-t, 0, z0]);
