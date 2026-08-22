@@ -27,7 +27,7 @@
 | N16 | Структура в мире | done |
 | N17 | Портал выхода | done |
 | N18 | Портал в мире и близость к нему | done |
-| N19 | Fly-cam | todo |
+| N19 | Fly-cam | done |
 | N20 | Freeze-режим | todo |
 | N21 | Демо D1 | todo |
 
