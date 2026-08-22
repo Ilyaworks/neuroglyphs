@@ -100,6 +100,14 @@ if (fs.existsSync('src/player/freeze.js')) {
   console.log('осмотр со стороны в порядке');
 }
 
+// Полёт, осмотр, мир и портал по отдельности зелёные, а демонстрация живёт на их стыке:
+// порядок вызовов в кадре и прыжок взгляда после выхода из осмотра не видны никому.
+if (fs.existsSync('.planning/DEMO-D1.md')) {
+  const r = run('node tools/demo-check.mjs');
+  if (!r.ok) refuse('собранная демонстрация не проходит проверку', r.out);
+  console.log('демонстрация в порядке: летит, осматривает, возвращается');
+}
+
 if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   const worldReady = fs.existsSync('src/world/world.js');
   const extra = worldReady ? ' --expect-content' : '';

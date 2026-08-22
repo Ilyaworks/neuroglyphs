@@ -118,6 +118,9 @@ function healthCheck() {
   if (fs.existsSync('src/player/freeze.js')) {
     checks.push(['осмотр со стороны', 'node tools/freeze-check.mjs']);
   }
+  if (fs.existsSync('.planning/DEMO-D1.md')) {
+    checks.push(['собранная демонстрация', 'node tools/demo-check.mjs']);
+  }
   if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
     checks.push(['страница в браузере', 'node tools/browser-check.mjs --name health --wait 4']);
   }
