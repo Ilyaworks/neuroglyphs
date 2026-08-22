@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+const NLC = String.fromCharCode(10);
 const CDP_PORT = 9368;
 const PORT = 5173;
 const READY_MS = 30000;
@@ -137,8 +138,9 @@ const SNAPSHOT = [
   '})()',
 ].join('\n');
 
-const FRAME_STATS = [
+const frameStats = (rig) => [
   '(() => {',
+  '  const RIG = ' + (rig ? 'true' : 'false') + ';',
   '  const m = window.__ng_boot;',
   // Пульсация меняет яркость между кадрами, поэтому перед каждым снимком фаза
   // прибивается к одному значению — иначе сравнение мерит не туман, а момент.
@@ -154,9 +156,11 @@ const FRAME_STATS = [
   // глубине. Внутри сферы радиуса 400 туман по формуле FogExp2 почти не виден, и
   // разница кадров тонула бы в шуме — на 1200 она однозначная. Позицию возвращаем.
   '  const saved = m.camera.position.clone();',
-  '  m.camera.position.set(0, 0, 1200);',
-  '  m.camera.lookAt(0, 0, 0);',
-  '  m.camera.updateMatrixWorld(true);',
+  '  if (RIG) {',
+  '    m.camera.position.set(0, 0, 1200);',
+  '    m.camera.lookAt(0, 0, 0);',
+  '    m.camera.updateMatrixWorld(true);',
+  '  }',
   '  m.renderer.render(m.scene, m.camera);',
   '  gl.readPixels(0, 0, w, hh, gl.RGBA, gl.UNSIGNED_BYTE, px);',
   '  let lit = 0, sum = 0;',
@@ -165,12 +169,17 @@ const FRAME_STATS = [
   '    if (v > 16) lit++;',
   '    sum += v;',
   '  }',
-  '  m.camera.position.copy(saved);',
-  '  m.camera.lookAt(0, 0, 0);',
-  '  m.camera.updateMatrixWorld(true);',
+  '  if (RIG) {',
+  '    m.camera.position.copy(saved);',
+  '    m.camera.lookAt(0, 0, 0);',
+  '    m.camera.updateMatrixWorld(true);',
+  '  }',
   '  return JSON.stringify({ lit, mean: sum / (px.length / 4) });',
   '})()',
 ].join('\n');
+
+const FRAME_STATS = frameStats(true);
+const FRAME_PLAIN = frameStats(false);
 
 async function evalJson(expression, awaitPromise = false) {
   const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise });
@@ -254,6 +263,39 @@ if (!fogInfo.names || !fogInfo.names.length) {
   if (!(gain >= FOG_GAIN_MIN)) {
     problems.push('обнуление плотности тумана не изменило кадр (прирост ' + gain.toFixed(3) +
       ' при пороге ' + FOG_GAIN_MIN + '): uniform есть, но шейдер им не пользуется.');
+  }
+}
+
+// Каждое облако точек обязано что-то давать на экране. Дальнее поле «звёзд» лежало
+// в геометрии и не рисовалось: размер точки считается от глубины, и на радиусе 2200 он
+// выходил меньше пикселя. Гасим облако и смотрим, изменился ли кадр.
+const CLOUD_MIN_LIT = 20;
+const full = await evalJson(FRAME_PLAIN);
+if (full.lit !== undefined) {
+  const contribution = [];
+  for (let i = 0; i < a.clouds.length; i++) {
+    await evalJson([
+      '(() => {',
+      '  let k = 0;',
+      '  window.__ng_boot.scene.traverse(o => { if (o.isPoints) { o.visible = (k++ !== IDX); } });',
+      '  return JSON.stringify({ ok: 1 });',
+      '})()',
+    ].join(NLC).replace('IDX', String(i)));
+    const without = await evalJson(FRAME_PLAIN);
+    contribution.push(without.lit !== undefined ? full.lit - without.lit : null);
+  }
+  await evalJson('(() => { window.__ng_boot.scene.traverse(o => { if (o.isPoints) o.visible = true; }); return JSON.stringify({ ok: 1 }); })()');
+  console.log('кадр из настоящей точки обзора: светится ' + full.lit + ' пикселей');
+  contribution.forEach((c, i) => {
+    console.log('  облако ' + i + ' (' + a.clouds[i].count + ' точек) даёт ' + c +
+      ' пикселей, нужно не меньше ' + CLOUD_MIN_LIT);
+  });
+  for (let i = 0; i < contribution.length; i++) {
+    if (!(contribution[i] >= CLOUD_MIN_LIT)) {
+      problems.push('облако ' + i + ' из ' + a.clouds[i].count + ' точек не видно на экране: ' +
+        'его гашение меняет кадр на ' + contribution[i] + ' пикселей. Обычно размер точки ' +
+        'на его глубине выходит меньше пикселя.');
+    }
   }
 }
 
