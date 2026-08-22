@@ -289,11 +289,28 @@ if (!fogInfo.names || !fogInfo.names.length) {
 // Каждое облако точек обязано что-то давать на экране. Дальнее поле «звёзд» лежало
 // в геометрии и не рисовалось: размер точки считается от глубины, и на радиусе 2200 он
 // выходил меньше пикселя. Гасим облако и смотрим, изменился ли кадр.
+// Мерится «в одиночку», а не «сколько пропадёт, если погасить». Разница принципиальная:
+// блендинг аддитивный, и если поверх облака светит другое, гашение первого ничего не меняет
+// в счёте — его пиксели остаются выше порога за счёт соседа. Так и вышло, когда формовое
+// поле сменилось на плоскую спираль в плоскости взгляда: она легла ровно на экранное место
+// портала, и вклад портала «по разности» упал с 681 до 15 пикселей, хотя сам портал
+// рисовался как рисовался. Вопрос гейта — «рисует ли это облако хоть что-нибудь», и честно
+// на него отвечает только кадр, где видно одно это облако.
 const CLOUD_MIN_LIT = 20;
 const full = await evalJson(FRAME_PLAIN);
 if (full.lit !== undefined) {
-  const contribution = [];
+  const alone = [];
+  const exclusive = [];
   for (let i = 0; i < a.clouds.length; i++) {
+    await evalJson([
+      '(() => {',
+      '  let k = 0;',
+      '  window.__ng_boot.scene.traverse(o => { if (o.isPoints) { o.visible = (k++ === IDX); } });',
+      '  return JSON.stringify({ ok: 1 });',
+      '})()',
+    ].join(NLC).replace('IDX', String(i)));
+    const only = await evalJson(FRAME_PLAIN);
+    alone.push(only.lit !== undefined ? only.lit : null);
     await evalJson([
       '(() => {',
       '  let k = 0;',
@@ -302,19 +319,20 @@ if (full.lit !== undefined) {
       '})()',
     ].join(NLC).replace('IDX', String(i)));
     const without = await evalJson(FRAME_PLAIN);
-    contribution.push(without.lit !== undefined ? full.lit - without.lit : null);
+    exclusive.push(without.lit !== undefined ? full.lit - without.lit : null);
   }
   await evalJson('(() => { window.__ng_boot.scene.traverse(o => { if (o.isPoints) o.visible = true; }); return JSON.stringify({ ok: 1 }); })()');
   console.log('кадр из настоящей точки обзора: светится ' + full.lit + ' пикселей');
-  contribution.forEach((c, i) => {
-    console.log('  облако ' + i + ' (' + a.clouds[i].count + ' точек) даёт ' + c +
-      ' пикселей, нужно не меньше ' + CLOUD_MIN_LIT);
+  alone.forEach((c, i) => {
+    console.log('  облако ' + i + ' (' + a.clouds[i].count + ' точек) в одиночку даёт ' + c +
+      ' пикселей, нужно не меньше ' + CLOUD_MIN_LIT +
+      '; только его собственных, не перекрытых соседями: ' + exclusive[i]);
   });
-  for (let i = 0; i < contribution.length; i++) {
-    if (!(contribution[i] >= CLOUD_MIN_LIT)) {
+  for (let i = 0; i < alone.length; i++) {
+    if (!(alone[i] >= CLOUD_MIN_LIT)) {
       problems.push('облако ' + i + ' из ' + a.clouds[i].count + ' точек не видно на экране: ' +
-        'его гашение меняет кадр на ' + contribution[i] + ' пикселей. Обычно размер точки ' +
-        'на его глубине выходит меньше пикселя.');
+        'даже когда все остальные погашены, оно даёт ' + alone[i] + ' пикселей. Обычно размер ' +
+        'точки на его глубине выходит меньше пикселя.');
     }
   }
 }
