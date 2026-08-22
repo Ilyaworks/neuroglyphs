@@ -16,7 +16,6 @@ export function createFreeze(camera, dom, flycam) {
 
   const target = new Vector3();
   const offset = new Vector3();
-  const lookDir = new Vector3();
   const up = new Vector3(0, 1, 0);
   const euler = new Euler(0, 0, 0, "YXZ");
   const fwd = new Vector3();
@@ -25,6 +24,7 @@ export function createFreeze(camera, dom, flycam) {
   const onKeyDown = (e) => {
     if (disposed) return;
     if (e.code !== "Tab") return;
+    e.preventDefault();
     if (frozen) {
       frozen = false;
       if (savedPos) camera.position.copy(savedPos);
@@ -62,15 +62,12 @@ export function createFreeze(camera, dom, flycam) {
     if (typeof dt !== "number" || !Number.isFinite(dt) || dt <= 0) return;
     if (!frozen) return;
 
-    camera.getWorldDirection(fwd);
-    target.copy(camera.position).addScaledVector(fwd, 1);
     target.copy(savedPos);
 
     heading += ORBIT_SPEED * dt;
     const cp = Math.cos(pitch);
     offset.set(Math.sin(heading) * cp, Math.sin(pitch), Math.cos(heading) * cp).multiplyScalar(radius);
     camera.position.copy(target).add(offset);
-    lookDir.copy(target).sub(camera.position).normalize();
     camera.up.copy(up);
     camera.lookAt(target);
     camera.updateMatrixWorld(true);
