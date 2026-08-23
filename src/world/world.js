@@ -134,6 +134,7 @@ export function createWorld(seedCode) {
   starMat.uniforms.uPulse = uniforms.uPulse;
   starMat.uniforms.uTime = uniforms.uTime;
   const stars = new THREE.Points(starGeo, starMat);
+  stars.userData.noReflect = true;
   group.add(stars);
 
   // Портал выхода: ровно один на мир. Садим его на дальнюю по −Z границу габарита —
