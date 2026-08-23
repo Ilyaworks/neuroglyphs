@@ -339,10 +339,12 @@ if (hasNotes) {
 console.log('');
 console.log('Закрыто задач: ' + doneCount + '. Подробный отчёт, если нужен: node tools/report.mjs');
 console.log('');
-console.log('Строка для новой сессии (всегда одна и та же):');
-console.log('');
-console.log('  Первым действием выполни: node tools/next-task.mjs');
-console.log('  Дальше делай ровно то, что он напечатал. Не составляй план.');
+// Здесь раньше печаталась «строка для новой сессии» из двух строк — огрызок промта
+// без правил. Вставив его, человек получил бы сессию без заслонки приёмки глазами и
+// без запрета на git reset. Промт целиком живёт в .planning/START.md и печатается
+// дословно только session-health, когда сессию действительно пора менять.
+console.log('Новую сессию начинать НЕ надо: модель берёт следующую задачу сама.');
+console.log('Когда сессию будет пора менять, session-health напечатает готовый промт.');
 console.log('');
 if (fs.existsSync('.planning/shots/' + id.toLowerCase() + '.png')) {
   console.log('Скриншот этой сессии: .planning/shots/' + id.toLowerCase() + '.png');
