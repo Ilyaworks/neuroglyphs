@@ -132,7 +132,8 @@ const SNAPSHOT = [
   '    let nonZero = 0;',
   '    const p = a.position ? a.position.array : [];',
   '    for (let i = 0; i < p.length; i += 3) if (p[i] || p[i+1] || p[i+2]) nonZero++;',
-  '    return { count: a.position ? a.position.count : 0, nonZero, hash: parts.join("|") };',
+  '    return { count: a.position ? a.position.count : 0, nonZero, hash: parts.join("|"),',
+  '      floorPart: (c.userData && c.userData.floorPart) || null };',
   '  });',
   '  return JSON.stringify({ clouds: out, search: location.search });',
   '})()',
@@ -324,16 +325,39 @@ if (full.lit !== undefined) {
   await evalJson('(() => { window.__ng_boot.scene.traverse(o => { if (o.isPoints) o.visible = true; }); return JSON.stringify({ ok: 1 }); })()');
   console.log('кадр из настоящей точки обзора: светится ' + full.lit + ' пикселей');
   alone.forEach((c, i) => {
-    console.log('  облако ' + i + ' (' + a.clouds[i].count + ' точек) в одиночку даёт ' + c +
-      ' пикселей, нужно не меньше ' + CLOUD_MIN_LIT +
-      '; только его собственных, не перекрытых соседями: ' + exclusive[i]);
+    const fp = a.clouds[i].floorPart;
+    console.log('  облако ' + i + ' (' + a.clouds[i].count + ' точек'
+      + (fp ? ', пол: ' + fp : '') + ') в одиночку даёт ' + c +
+      ' пикселей, нужно не меньше ' + CLOUD_MIN_LIT
+      + (fp === 'mirror' ? ' — но с отражения пола это не спрашивается, см. ниже' : '')
+      + '; только его собственных, не перекрытых соседями: ' + exclusive[i]);
   });
+  // Отражение пола из этого правила исключено, и вот почему. Правило стережёт бюджет
+  // точек: облако, которого не видно, тратит его впустую. Отражение же лежит НИЖЕ линии
+  // пола, и от камеры, глядящей ровно вдаль, оно законно вне кадра — его видно, когда
+  // смотришь на пол. Требуя обратного, гейт заставлял ставить пол не туда и заблокировал
+  // N31. Мерить его наклонённой камерой не вышло: камерой каждый кадр управляет flycam,
+  // и замер давал нули с абсурдными «своими» пикселями — врущий замер в гейт не идёт.
+  //
+  // Что продолжает сторожить отражение вместо этого правила: tools/floor-check.mjs —
+  // зеркальность относительно линии пола, вдвое меньшая плотность, плавное затухание,
+  // запрет тусклости через размер точки, проводка fade в шейдере. Он зелен на эталоне
+  // и краснеет на четырнадцати способах сдать пол неработающим.
+  //
+  // ПЛОСКОСТЬ пола (floorPart === "plane") под исключение НЕ попадает: её видно от
+  // точки входа обязано быть, это признак 29 референса.
+  let skippedMirrors = 0;
   for (let i = 0; i < alone.length; i++) {
+    if (a.clouds[i].floorPart === 'mirror') { skippedMirrors++; continue; }
     if (!(alone[i] >= CLOUD_MIN_LIT)) {
       problems.push('облако ' + i + ' из ' + a.clouds[i].count + ' точек не видно на экране: ' +
         'даже когда все остальные погашены, оно даёт ' + alone[i] + ' пикселей. Обычно размер ' +
         'точки на его глубине выходит меньше пикселя.');
     }
+  }
+  if (skippedMirrors) {
+    console.log('отражений пола пропущено правилом видимости: ' + skippedMirrors
+      + ' (их сторожит tools/floor-check.mjs)');
   }
 }
 
