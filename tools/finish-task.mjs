@@ -386,16 +386,35 @@ if (hasNotes) {
 console.log('');
 console.log('Закрыто задач: ' + doneCount + '. Подробный отчёт, если нужен: node tools/report.mjs');
 console.log('');
-// Здесь раньше печаталась «строка для новой сессии» из двух строк — огрызок промта
-// без правил. Вставив его, человек получил бы сессию без заслонки приёмки глазами и
-// без запрета на git reset. Промт целиком живёт в .planning/START.md и печатается
-// дословно только session-health, когда сессию действительно пора менять.
-console.log('Новую сессию начинать НЕ надо: модель берёт следующую задачу сама.');
-console.log('Когда сессию будет пора менять, session-health напечатает готовый промт.');
-console.log('');
 if (fs.existsSync('.planning/shots/' + id.toLowerCase() + '.png')) {
   console.log('Скриншот этой сессии: .planning/shots/' + id.toLowerCase() + '.png');
   console.log('');
 }
-console.log('Промт следующей задачи модель получит сама — копировать его не нужно.');
 console.log('#'.repeat(78));
+
+// Промт следующей сессии печатается здесь, а не по просьбе человека и не по памяти
+// модели. Раньше он выходил только из session-health и только когда сессия распухла:
+// человек говорил «принято», задача закрывалась — и промта не было, потому что
+// напечатать его было нечему. Теперь закрытие задачи и есть конец сессии, и промт
+// выходит вместе с ней. Текст берётся дословно из .planning/START.md: огрызок из
+// двух строк уже приводил к сессии без заслонки приёмки глазами и без запрета на
+// git reset.
+{
+  const START = '.planning/START.md';
+  console.log('');
+  console.log('#'.repeat(78));
+  console.log('СЕССИЯ ЗАКОНЧЕНА: задача ' + id + ' закрыта.');
+  console.log('Одна закрытая задача — одна сессия. Следующую задачу в этой сессии');
+  console.log('не бери. Человек копирует всё, что ниже, в новую сессию целиком.');
+  console.log('#'.repeat(78));
+  console.log('');
+  if (!fs.existsSync(START)) {
+    console.log('промт лежит в ' + START + ', но файла нет — скажи об этом человеку');
+  } else {
+    const text = fs.readFileSync(START, 'utf8');
+    const i = text.indexOf(String.fromCharCode(10) + '---' + String.fromCharCode(10));
+    console.log((i < 0 ? text : text.slice(i + 5)).trim());
+  }
+  console.log('');
+  console.log('#'.repeat(78));
+}

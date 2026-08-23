@@ -79,13 +79,34 @@ const prev = fs.existsSync(STORE)
 const entry = ['## ' + id + ' — отложена ' + when, '', why, ''];
 fs.writeFileSync(STORE, head.concat(prev, entry).join(NL));
 
-console.log(id + ' отложена, очередь пойдёт дальше.');
+console.log(id + ' отложена.');
 console.log('');
 console.log('Скажи человеку ровно это:');
 console.log('');
-console.log('  Задача ' + id + ' застряла и отложена, я взял следующую.');
+console.log('  Задача ' + id + ' застряла и отложена.');
 console.log('  Причина: ' + why);
 console.log('  Она в .planning/BLOCKED.md и сама не решится — с ней надо разобраться');
 console.log('  отдельно: либо поправить текст задачи, либо признать гейт неправым.');
 console.log('');
-console.log('Дальше выполни: node tools/next-task.mjs');
+
+// Отложенная задача заканчивает сессию так же, как закрытая: одна задача — одна
+// сессия. Раньше здесь стояло «дальше выполни next-task», и модель уходила в
+// следующую задачу с контекстом, набитым тем, обо что она только что споткнулась.
+{
+  const START = '.planning/START.md';
+  console.log('#'.repeat(78));
+  console.log('СЕССИЯ ЗАКОНЧЕНА: ' + id + ' отложена.');
+  console.log('Следующую задачу в этой сессии не бери, next-task не запускай.');
+  console.log('Человек копирует всё, что ниже, в новую сессию целиком.');
+  console.log('#'.repeat(78));
+  console.log('');
+  if (!fs.existsSync(START)) {
+    console.log('промт лежит в ' + START + ', но файла нет — скажи об этом человеку');
+  } else {
+    const text = fs.readFileSync(START, 'utf8');
+    const i = text.indexOf(String.fromCharCode(10) + '---' + String.fromCharCode(10));
+    console.log((i < 0 ? text : text.slice(i + 5)).trim());
+  }
+  console.log('');
+  console.log('#'.repeat(78));
+}

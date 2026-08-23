@@ -7,9 +7,14 @@
 // а в этом проекте отчёты и так приходится сверять с диском. Дешевле начать новую
 // сессию, чем ловить последствия.
 //
-// Число сжатий прослойка не записывает (time_compacting в базе пустой у всех сессий),
-// поэтому мерим то, что записано: сколько сообщений и сколько входных токенов набрала
-// самая свежая сессия. Оба растут только вверх и служат заменой счётчику сжатий.
+// Сжатия прослойка отдельно не записывает (time_compacting пуст, session_context_epoch
+// пуст), но их видно в замере: у каждого ответа модели записан размер контекста, с
+// которым он был сделан. Контекст растёт до потолка (~101k на этой модели), а после
+// сжатия обрывается вниз втрое. Каждый такой обрыв и есть одно сжатие. Проверено по
+// истории: R26 — пять обрывов, R25 — два, N63 — ни одного.
+//
+// Считаем ещё и сообщения с токенами: они растут только вверх и показывают, далеко ли
+// до следующего сжатия.
 //
 // ВАЖНО про пороги: они СОВЕТЧИКИ, а не замер. Взяты по наблюдённым размерам сессий
 // этого проекта (R24 закрылась на 161k, R25 на 325k, R26 перевалила 571k), а не из
@@ -24,6 +29,10 @@ const DB = path.join(process.env.USERPROFILE || process.env.HOME || '',
 
 const WARN_MSGS = 150, STOP_MSGS = 250;
 const WARN_TOK = 300000, STOP_TOK = 450000;
+// Сжатия. Порог не измерен на падении качества — измерена цена: R26 с пятью сжатиями
+// дала семь одинаковых форм и рассказ о том, чего не было. Два — предупреждение,
+// три — сессия закрывается.
+const WARN_COMPACT = 2, STOP_COMPACT = 3;
 
 const START = '.planning/START.md';
 
@@ -55,7 +64,15 @@ const PY = [
   'else:',
   '    sid, title, ti, to = r[0]',
   '    n = list(c.execute("select count(*) from message where session_id=?", (sid,)))[0][0]',
-  '    print(json.dumps({"title": title or "", "tin": ti or 0, "tout": to or 0, "msgs": n}))',
+  '    seq = []',
+  '    for (d,) in c.execute("select data from message where session_id=? order by time_created", (sid,)):',
+  '        o = json.loads(d)',
+  '        if o.get("role") != "assistant": continue',
+  '        t = o.get("tokens") or {}',
+  '        seq.append((t.get("input") or 0) + ((t.get("cache") or {}).get("read") or 0))',
+  '    comp = sum(1 for i in range(1, len(seq)) if seq[i-1] > 60000 and seq[i] < seq[i-1] * 0.6)',
+  '    ctx = max(seq) if seq else 0',
+  '    print(json.dumps({"title": title or "", "tin": ti or 0, "tout": to or 0, "msgs": n, "comp": comp, "ctx": ctx}))',
 ].join('\n');
 
 let info;
@@ -73,10 +90,31 @@ if (!info.title) {
 }
 
 const tin = info.tin, msgs = info.msgs;
+const comp = info.comp || 0, ctx = info.ctx || 0;
 console.log('сессия: ' + info.title);
 console.log('сообщений: ' + msgs + ' (совет: до ' + WARN_MSGS + ')');
 console.log('входных токенов: ' + tin + ' (совет: до ' + WARN_TOK + ')');
+console.log('сжатий контекста: ' + comp + ' (совет: до ' + WARN_COMPACT + '), потолок ' + ctx);
 console.log('');
+
+if (comp >= STOP_COMPACT) {
+  console.log('СЖАТИЙ ' + comp + ' — В НОВУЮ СЕССИЮ.');
+  console.log('');
+  console.log('После третьего сжатия текст задачи в памяти модели — это пересказ');
+  console.log('пересказа. Её ответы про картинку с этого момента не считаются: кадр');
+  console.log('смотрит человек. Промт следующей сессии ниже, но человек сверяет его');
+  console.log('с файлами задачи, прежде чем открывать новую сессию.');
+  console.log('');
+  console.log('#'.repeat(78));
+  console.log('СЖАТИЙ КОНТЕКСТА: ' + comp + '. Дальше в этой сессии работать нельзя.');
+  console.log('Начните новую сессию и вставьте в неё промт целиком:');
+  console.log('#'.repeat(78));
+  console.log('');
+  console.log(prompt());
+  console.log('');
+  console.log('#'.repeat(78));
+  process.exit(2);
+}
 
 if (msgs >= STOP_MSGS || tin >= STOP_TOK) {
   console.log('ПОРА В НОВУЮ СЕССИЮ.');
@@ -97,6 +135,12 @@ if (msgs >= STOP_MSGS || tin >= STOP_TOK) {
   console.log('');
   console.log('#'.repeat(78));
   process.exit(2);
+}
+
+if (comp >= WARN_COMPACT) {
+  console.log('контекст сжимался ' + comp + ' раза — новую задачу НЕ бери.');
+  console.log('Доведи текущую до вердикта человека и попроси новую сессию.');
+  process.exit(0);
 }
 
 if (msgs >= WARN_MSGS || tin >= WARN_TOK) {
