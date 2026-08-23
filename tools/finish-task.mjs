@@ -222,6 +222,36 @@ if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
   console.log('страница чистая, скриншот: .planning/shots/' + id.toLowerCase() + '.png');
 }
 
+// Приёмка глазами: гейты её не заменяют, и удерживать её надо механизмом, а не текстом.
+// R25 закрылась отчётом «все гейты прошли» при семи одинаковых формах на листе —
+// картинка лежала на диске, но ничто не мешало закрыть задачу, не посмотрев на неё.
+// Вердикт выносит человек командой tools/verdict.mjs и привязан к отпечатку картинки.
+{
+  const issues = fs.readFileSync('.planning/ISSUES.md', 'utf8').split(/\r?\n/);
+  const s = issues.findIndex(l => new RegExp('^## ' + id + ' — ').test(l));
+  if (s >= 0) {
+    let e = issues.length;
+    for (let i = s + 1; i < issues.length; i++) {
+      if (/^## [NR]\d+ — /.test(issues[i])) { e = i; break; }
+    }
+    const body = issues.slice(s, e);
+    if (body.some(l => /\*\*Приёмка глазами/.test(l))) {
+      const v = run('node tools/verdict.mjs ' + id + ' --check');
+      const shown = run('node tools/verdict.mjs ' + id);
+      if (!/ВЕРДИКТ_ЕСТЬ/.test(v.out)) {
+        refuse('нет вердикта приёмки глазами — задачу закрывает человек, а не гейты',
+          'У этой задачи приёмка назначена глазами. Гейты её не заменяют: они мерят то,'
+          + String.fromCharCode(10) + 'что умеют измерить, а решает картинка.'
+          + String.fromCharCode(10) + String.fromCharCode(10)
+          + 'Сделай так: пересними картинку, напечатай человеку блок ниже целиком и'
+          + String.fromCharCode(10) + 'останови работу словом STOP. Сам вердикт не выноси и задачу не закрывай.'
+          + String.fromCharCode(10) + String.fromCharCode(10) + shown.out);
+      }
+      console.log('вердикт приёмки глазами на месте');
+    }
+  }
+}
+
 const path = '.planning/BACKLOG.md';
 const before = fs.readFileSync(path, 'utf8');
 const row = new RegExp('(\\|\\s*' + id + '\\s*\\|[^|]*\\|\\s*)todo(\\s*\\|)');

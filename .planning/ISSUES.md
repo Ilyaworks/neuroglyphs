@@ -2719,5 +2719,19 @@ kleinBottle   → ядро shellPoint(0…0.17) плюс внешний слой
 
 **Проверка:** `node tools/illusion-check.mjs` — `ILLUSION_OK`, плюс
 `node tools/forms-sheet.mjs` — лист снят.
-**Приёмка глазами:** моя, по листу. Восемь форм с провалом обязаны отличаться друг от
-друга; `penroseTiling`, `gyroid`, `schwarzP` — друг от друга и от косых штрихов.
+
+**Картинка:** `.planning/shots/forms-sheet.png`
+
+**Приёмка глазами:** смотрит человек, вердикт пишется командой
+`node tools/verdict.mjs R26 да` или `node tools/verdict.mjs R26 нет "что не так"`.
+Без вердикта `finish-task` задачу не закроет. Пункты — вопросы с ответом «да/нет»,
+любое «нет» означает, что правка не принята:
+
+- [ ] Первый ряд листа: ringedVoid, coreHalo, shellPair, lobedCore, bandedRing — это пять РАЗНЫХ фигур, а не одна пятикратно? Раньше у всех был одинаковый комок в центре и одинаковые размазанные дуги.
+- [ ] haloShell, annulusCore, twinShell тоже отличаются от первого ряда и друг от друга?
+- [ ] penroseTiling, gyroid, schwarzP — три РАЗНЫЕ картинки? Раньше все три были косыми штрихами по диагонали.
+- [ ] У gyroid и schwarzP видна повторяющаяся ячейка — сетка проходов, похожая на лабиринт, а не россыпь обрывков?
+- [ ] У penroseTiling видна пятикратная симметрия: мысленно поверни клетку на 72°, картинка должна совпасть с собой?
+- [ ] apollonianGasket — вложенные друг в друга окружности разного размера, а не просто дуги?
+- [ ] poincareDisk73 — круглый диск, разбитый на клетки, которые мельчают к краю, а не завиток со звездой?
+- [ ] Формы, принятые в R25, не испортились: trefoilKnot и torusKnot35 всё ещё два разных узла, а lissajousKnot, cliffordTorus, catenoidHelicoid, mengerSponge, sierpinskiTetra, calabiYauSlice, ennepersSurface, quasicrystal3d похожи на свои имена?
