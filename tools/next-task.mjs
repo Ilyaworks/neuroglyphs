@@ -249,6 +249,22 @@ try {
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   if (last) { console.log(last); console.log(''); }
 } catch {}
+// Незакоммиченная правка в дереве — это работа прошлой сессии, которую прервали.
+// Без этой строки новая сессия думает, что начинает с нуля, и переписывает поверх.
+try {
+  const dirty = execSync('git status --porcelain -- src test', { encoding: 'utf8' }).trim();
+  if (dirty) {
+    console.log('## В дереве уже есть незакоммиченная работа');
+    console.log('');
+    console.log(dirty);
+    console.log('');
+    console.log('Это работа прошлой сессии по ЭТОЙ же задаче — её прервали, не закончив.');
+    console.log('Продолжай с того места, где она остановилась: посмотри git diff по этим');
+    console.log('файлам и доделай. Не начинай с нуля и не откатывай — там может быть');
+    console.log('сделана большая часть работы.');
+    console.log('');
+  }
+} catch {}
 console.log('## Правила');
 console.log('');
 console.log(head);
