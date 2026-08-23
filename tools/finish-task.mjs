@@ -20,16 +20,57 @@ function run(cmd) {
   }
 }
 
+// Счётчик отказов по задаче. Лежит в файле, а не в голове модели: правило «три
+// попытки» держалось на её самодисциплине и не сработало ни разу — на N31 сессия
+// ушла в круг, напечатала «I'm stuck» и продолжила по тому же кругу. Теперь третий
+// отказ откладывает задачу механически.
+const ATTEMPTS = '.planning/.attempts.json';
+const MAX_ATTEMPTS = 3;
+
+function readAttempts() {
+  try { return JSON.parse(fs.readFileSync(ATTEMPTS, 'utf8')); } catch { return {}; }
+}
+function writeAttempts(a) {
+  try { fs.writeFileSync(ATTEMPTS, JSON.stringify(a, null, 1)); } catch {}
+}
+
 function refuse(what, out) {
-  console.error('');
-  console.error('#'.repeat(78));
-  console.error('ЗАДАЧА НЕ ЗАКРЫТА: ' + what);
-  console.error('#'.repeat(78));
   const NL = String.fromCharCode(10);
-  console.error(out.trim().split(NL).slice(-25).join(NL));
+  const tail = out.trim().split(NL).slice(-25).join(NL);
+
+  const all = readAttempts();
+  const n = (all[id] || 0) + 1;
+  all[id] = n;
+  writeAttempts(all);
+
   console.error('');
+  console.error('#'.repeat(78));
+  console.error('ЗАДАЧА НЕ ЗАКРЫТА (отказ ' + n + ' из ' + MAX_ATTEMPTS + '): ' + what);
+  console.error('#'.repeat(78));
+  console.error(tail);
+  console.error('');
+
+  if (n >= MAX_ATTEMPTS) {
+    // Третий отказ — задача откладывается сама. Причину берём из вывода гейта: это
+    // самое фактичное, что есть, и не зависит от того, как модель себя чувствует.
+    const why = what + ' (после ' + n + ' попыток; последний вывод гейта: '
+      + tail.split(NL).filter(l => l.trim()).slice(-3).join(' / ').slice(0, 400) + ')';
+    console.error('Это ' + n + '-й отказ по ' + id + '. Задача откладывается автоматически —');
+    console.error('дальше крутиться нельзя, это уже съело одну сессию целиком.');
+    console.error('');
+    const r = run('node tools/blocked.mjs ' + id + ' "' + why.replace(/"/g, "'") + '"');
+    console.error(r.out.trim());
+    console.error('');
+    console.error('Счётчик попыток сброшен. НЕ пытайся закрыть ' + id + ' снова:');
+    console.error('напечатай человеку то, что велел blocked, и выполни next-task.');
+    all[id] = 0;
+    writeAttempts(all);
+    process.exit(1);
+  }
+
   console.error('Задача осталась todo, коммита нет. Исправь причину и запусти finish-task снова.');
-  console.error('Если не получается три раза — отложи: node tools/blocked.mjs ' + id + ' "почему"');
+  console.error('Осталось попыток: ' + (MAX_ATTEMPTS - n) + '. На третьей задача');
+  console.error('отложится сама, и это нормально — крутиться в круге хуже.');
   process.exit(1);
 }
 
@@ -250,6 +291,12 @@ if (fs.existsSync('server.mjs') && fs.existsSync('index.html')) {
       console.log('вердикт приёмки глазами на месте');
     }
   }
+}
+
+// Задача закрылась — счётчик отказов обнуляем, чтобы он не догонял следующую правку.
+{
+  const a = readAttempts();
+  if (a[id]) { a[id] = 0; writeAttempts(a); }
 }
 
 const path = '.planning/BACKLOG.md';

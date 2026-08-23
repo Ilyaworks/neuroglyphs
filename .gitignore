@@ -10,3 +10,5 @@ dist/
 
 .planning/.last-report
 .openchamber/
+.planning/.attempts.json
+debug-*.mjs
