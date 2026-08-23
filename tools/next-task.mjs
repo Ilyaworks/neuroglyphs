@@ -159,6 +159,12 @@ function healthCheck() {
   if (fs.existsSync('src/world/shapeField.js')) {
     checks.push(['слой форм', 'node tools/shapefield-check.mjs']);
   }
+  if (fs.existsSync('src/render/floor.js')) {
+    checks.push(['отражающий пол', 'node tools/floor-check.mjs']);
+  }
+  if (fs.existsSync('src/world/textField.js')) {
+    checks.push(['поле надписей', 'node tools/textfield-check.mjs']);
+  }
   if (fs.existsSync('src/world/world.js') &&
       /buildImpossible/.test(fs.readFileSync('src/world/world.js', 'utf8'))) {
     checks.push(['фигура в мире', 'node tools/figure-check.mjs']);
