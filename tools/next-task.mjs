@@ -242,6 +242,13 @@ console.log('Не составляй план. Первым действием �
 console.log('');
 console.log(task.lines.join('\n').trim());
 console.log('');
+// Если человек уже смотрел на картинку и не принял — причина обязана приехать вместе
+// с задачей, иначе модель начнёт со второй попытки то же самое.
+try {
+  const last = execSync('node tools/verdict.mjs ' + task.id + ' --last',
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  if (last) { console.log(last); console.log(''); }
+} catch {}
 console.log('## Правила');
 console.log('');
 console.log(head);

@@ -98,7 +98,13 @@ export function acceptedFor(taskId, currentKey) {
 }
 
 function writeVerdict(verdict) {
-  const when = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const when = (() => {
+    const d = new Date();
+    const p2 = (n) => String(n).padStart(2, '0');
+    // Местное время, не UTC: человек читает эту строку и должен узнавать свой час.
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate())
+      + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  })();
   const rows = readStore();
   const head = [
     '# Вердикты приёмки глазами',
@@ -112,6 +118,24 @@ function writeVerdict(verdict) {
   rows.push({ id, verdict, key, when, reason });
   const lines = rows.map(v => '| ' + [v.id, v.verdict, v.key, v.when, v.reason || ''].join(' | ') + ' |');
   fs.writeFileSync(STORE, head.concat(lines, ['']).join(NL));
+}
+
+// ---- режим «последний отказ»: чтобы причина доехала до модели сама -------------
+// Иначе человеку пришлось бы пересказывать её вручную, а конвейер должен вести себя сам.
+if (answer === '--last') {
+  const mine = readStore().filter(v => v.id === id);
+  const last = mine[mine.length - 1];
+  if (last && last.verdict === 'не принято') {
+    console.log('## Человек уже смотрел на это и НЕ принял');
+    console.log('');
+    console.log('Отказ от ' + last.when + ': ' + (last.reason || 'причина не записана'));
+    console.log('');
+    console.log('Это не догадка и не замер — это приёмка глазами по картинке.');
+    console.log('Спорить с ней замерами нельзя: гейт мерит то, что умеет, а решает картинка.');
+    console.log('Исправь именно то, что названо в отказе, и не считай задачу сделанной,');
+    console.log('пока человек не ответит «принято» на новую картинку.');
+  }
+  process.exit(0);
 }
 
 // ---- режим проверки для finish-task -------------------------------------------
