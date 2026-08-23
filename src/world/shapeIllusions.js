@@ -35,79 +35,111 @@ function shellPoint(i, salt, R, inner, outer, flatten, lobes, out) {
 }
 
 // ---- семья 1: ядро, пустой промежуток, кольцо (провал плотности) ----
-// Честные геометрические имена: это не топологические тела, а два слоя с провалом.
+// Четыре разные конструкции кольца, каждая с плотным ядром и пустым промежутком:
+// плоский диск, два раздельных пояса, кольцо с лепестками, каркас из рёбер,
+// спиральный рукав.
 
-const ringedVoid = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 1) < 0.36) {
-    shellPoint(i, 11, R, 0.0, 0.17, 1, 0, out);
-  } else {
-    shellPoint(i, 17, R, 0.58, 1.0, 1, 0, out);
-  }
-};
+// Плотное ядро: шаровый слой от 0 до coreR.
+function corePoint(i, salt, R, coreR, out) {
+  shellPoint(i, salt, R, 0.0, coreR, 1, 0, out);
+}
 
-const coreHalo = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 2) < 0.38) {
-    shellPoint(i, 21, R, 0.0, 0.18, 1, 0, out);
-  } else {
-    shellPoint(i, 27, R, 0.60, 1.0, 0.94, 2, out);
-  }
-};
+// Кольцо А: плоский диск — радиусы a..b, толщина по y.
+function diskRing(i, R, a, b, out) {
+  const u = h(i * 3 + 701);
+  const v = h(i * 3 + 702);
+  const w = h(i * 3 + 703);
+  const phi = v * TAU;
+  const rr = R * Math.sqrt(a * a + w * (b * b - a * a));
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 704) - 0.5) * R * 0.3;
+  out[2] = rr * Math.sin(phi);
+}
 
-const shellPair = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 3) < 0.40) {
-    shellPoint(i, 31, R, 0.0, 0.19, 1, 0, out);
-  } else {
-    shellPoint(i, 37, R, 0.62, 1.0, 0.88, 3, out);
-  }
-};
+// Кольцо Б: два раздельных толстых пояса на радиусах r1 и r2.
+function beltRing(i, R, r1, r2, out) {
+  const u = h(i * 3 + 711);
+  const v = h(i * 3 + 712);
+  const w = h(i * 3 + 713);
+  const band = u < 0.5 ? r1 : r2;
+  const phi = v * TAU;
+  const rr = R * (band + (w - 0.5) * 0.15);
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 714) - 0.5) * R * 0.3;
+  out[2] = rr * Math.sin(phi);
+}
 
-const lobedCore = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 4) < 0.42) {
-    shellPoint(i, 41, R, 0.0, 0.20, 1, 0, out);
-  } else {
-    shellPoint(i, 47, R, 0.64, 1.0, 0.82, 4, out);
-  }
-};
+// Кольцо В: диск с лепестками — радиус модулируется по углу.
+function petalRing(i, R, a, b, petals, out) {
+  const u = h(i * 3 + 721);
+  const v = h(i * 3 + 722);
+  const w = h(i * 3 + 723);
+  const phi = v * TAU;
+  const mid = 0.5 * (a + b);
+  const half = 0.5 * (b - a);
+  const rr = R * (mid + half * (2 * w - 1) * (0.55 + 0.45 * Math.cos(petals * phi)));
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 724) - 0.5) * R * 0.3;
+  out[2] = rr * Math.sin(phi);
+}
 
-const bandedRing = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 5) < 0.44) {
-    shellPoint(i, 51, R, 0.0, 0.21, 1, 0, out);
-  } else {
-    shellPoint(i, 57, R, 0.66, 1.0, 0.76, 5, out);
-  }
-};
+// Кольцо Г: каркас из рёбер — n осей, на каждой толстый сегмент.
+function ribRing(i, R, a, b, ribs, out) {
+  const u = h(i * 3 + 731);
+  const v = h(i * 3 + 732);
+  const w = h(i * 3 + 733);
+  const x = h(i * 3 + 734);
+  const k = Math.floor(v * ribs) % ribs;
+  const base = k * TAU / ribs;
+  const rr = R * (a + w * (b - a));
+  const off = (x - 0.5) * 0.6;
+  const phi = base + off;
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 735) - 0.5) * R * 0.55;
+  out[2] = rr * Math.sin(phi);
+}
 
-const haloShell = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 6) < 0.46) {
-    shellPoint(i, 61, R, 0.0, 0.22, 1, 0, out);
-  } else {
-    shellPoint(i, 67, R, 0.68, 1.0, 0.70, 6, out);
-  }
-};
+// Кольцо Д: спиральный рукав — радиус растёт с углом.
+function spiralRing(i, R, a, b, out) {
+  const u = h(i * 3 + 741);
+  const v = h(i * 3 + 742);
+  const w = h(i * 3 + 743);
+  const phi = v * TAU;
+  const rr = R * (a + (b - a) * (0.5 + 0.5 * Math.sin(phi * 3 + w * 2)));
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 744) - 0.5) * R * 0.3;
+  out[2] = rr * Math.sin(phi);
+}
 
-const annulusCore = (i, p, out) => {
+// Ядро + кольцо + рассеянный слой для заполненности объёма.
+function dipForm(i, p, coreSalt, coreR, ringFn, ringArgs, out) {
   const R = p.radius;
-  if (h(i * 7 + 7) < 0.48) {
-    shellPoint(i, 71, R, 0.0, 0.23, 1, 0, out);
+  const sel = h(i * 7 + coreSalt);
+  if (sel < 0.30) {
+    corePoint(i, coreSalt, R, coreR, out);
+  } else if (sel < 0.85) {
+    ringFn(i, R, ...ringArgs, out);
   } else {
-    shellPoint(i, 77, R, 0.70, 1.0, 0.64, 2, out);
+    // рассеянный слой: точки в объёме кольца, чтобы заполнить ячейки
+    const u = h(i * 3 + 901);
+    const v = h(i * 3 + 902);
+    const w = h(i * 3 + 903);
+    const phi = v * TAU;
+    const rr = R * (0.5 + w * 0.5);
+    out[0] = rr * Math.cos(phi);
+    out[1] = (h(i * 3 + 904) - 0.5) * R * 0.5;
+    out[2] = rr * Math.sin(phi);
   }
-};
+}
 
-const twinShell = (i, p, out) => {
-  const R = p.radius;
-  if (h(i * 7 + 8) < 0.50) {
-    shellPoint(i, 81, R, 0.0, 0.24, 1, 0, out);
-  } else {
-    shellPoint(i, 87, R, 0.72, 1.0, 0.58, 3, out);
-  }
-};
+const ringedVoid = (i, p, out) => dipForm(i, p, 1, 0.16, diskRing, [0.62, 0.98], out);
+const coreHalo = (i, p, out) => dipForm(i, p, 2, 0.15, beltRing, [0.65, 0.95], out);
+const shellPair = (i, p, out) => dipForm(i, p, 3, 0.14, petalRing, [0.62, 0.98, 5], out);
+const lobedCore = (i, p, out) => dipForm(i, p, 4, 0.13, petalRing, [0.62, 0.98, 6], out);
+const bandedRing = (i, p, out) => dipForm(i, p, 5, 0.12, spiralRing, [0.62, 0.98], out);
+const haloShell = (i, p, out) => dipForm(i, p, 6, 0.11, petalRing, [0.62, 0.98, 7], out);
+const annulusCore = (i, p, out) => dipForm(i, p, 7, 0.10, ribRing, [0.58, 0.98, 9], out);
+const twinShell = (i, p, out) => dipForm(i, p, 8, 0.09, beltRing, [0.62, 0.98], out);
 
 // ---- семья 2: настоящие параметризации ----
 
@@ -235,32 +267,45 @@ const ennepersSurface = (i, p, out) => {
   out[2] = R * sv * cv + h2(i + 184) * p.radius * 0.01;
 };
 
-// Гироид: неявная поверхность sin(x)cos(y) + sin(y)cos(z) + sin(z)cos(x) = 0.
-const gyroid = (i, p, out) => {
-  const R = p.radius * 0.75;
-  const u = (i / 2000) * TAU;
-  const v = h(i + 191) * TAU;
-  const w = h(i + 192) * TAU;
-  const x = R * (Math.cos(u) + 0.3 * Math.sin(2 * u) * Math.cos(v));
-  const y = R * (Math.sin(u) * Math.cos(w) + 0.3 * Math.sin(v) * Math.sin(2 * w));
-  const z = R * (Math.cos(v) * Math.sin(w) + 0.3 * Math.cos(2 * u) * Math.sin(v)) * p.flatten;
-  out[0] = x + h2(i + 193) * p.radius * 0.03;
-  out[1] = y + h2(i + 194) * p.radius * 0.03;
-  out[2] = z + h2(i + 195) * p.radius * 0.03;
-};
-
-// Поверхность Шварца P: неявная, отбор по уравнению.
-const schwarzP = (i, p, out) => {
+// Гироид: куб из нескольких периодов, точки отобраны по
+// |sin x·cos y + sin y·cos z + sin z·cos x| < eps — повторяющаяся ячейка лабиринта.
+// Точки вне поверхности прижимаются к ней, поэтому объём заполнен, а не пуст.
+function periodicSurface(i, p, salt, periods, eps, out) {
   const R = p.radius;
-  const u = (i / 2000) * TAU;
-  const v = h(i + 201) * TAU;
-  const x = R * Math.cos(u) * (0.3 + 0.7 * Math.cos(v));
-  const y = R * Math.sin(u) * (0.3 + 0.7 * Math.sin(v));
-  const z = R * Math.sin(v) * 0.8 * p.flatten;
-  out[0] = x + h2(i + 202) * p.radius * 0.003;
-  out[1] = y + h2(i + 203) * p.radius * 0.003;
-  out[2] = z + h2(i + 204) * p.radius * 0.003;
-};
+  const side = R * 1.4;
+  const cell = side / periods;
+  const ix = Math.floor(h(i * 3 + salt) * periods);
+  const iy = Math.floor(h(i * 3 + salt + 1) * periods);
+  const iz = Math.floor(h(i * 3 + salt + 2) * periods);
+  const fx = h(i * 3 + salt + 3);
+  const fy = h(i * 3 + salt + 4);
+  const fz = h(i * 3 + salt + 5);
+  let x = (ix + fx - periods / 2) * cell;
+  let y = (iy + fy - periods / 2) * cell;
+  let z = (iz + fz - periods / 2) * cell;
+  const f = Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z) + Math.sin(z) * Math.cos(x);
+  const af = Math.abs(f);
+  if (af > eps) {
+    // прижимаем к поверхности: сдвигаем вдоль градиента на (af - eps)
+    const gx = Math.cos(x) * Math.cos(y) - Math.sin(y) * Math.sin(z) - Math.cos(z) * Math.sin(x);
+    const gy = -Math.sin(x) * Math.sin(y) + Math.cos(y) * Math.cos(z);
+    const gz = -Math.sin(x) * Math.sin(z) + Math.cos(y) * Math.sin(y) - Math.cos(z) * Math.cos(x);
+    const gl = Math.hypot(gx, gy, gz) || 1;
+    const s = (af - eps) / (gl * cell) * 0.5;
+    x -= gx / gl * s * cell;
+    y -= gy / gl * s * cell;
+    z -= gz / gl * s * cell;
+  }
+  const j = cell * 0.45;
+  out[0] = x + (h(i * 3 + salt + 6) - 0.5) * j;
+  out[1] = (y + (h(i * 3 + salt + 7) - 0.5) * j) * p.flatten;
+  out[2] = z + (h(i * 3 + salt + 8) - 0.5) * j;
+}
+
+const gyroid = (i, p, out) => periodicSurface(i, p, 191, 3, 0.45, out);
+
+// Поверхность Шварца P: та же периодическая конструкция, другие период и порог.
+const schwarzP = (i, p, out) => periodicSurface(i, p, 201, 2, 0.55, out);
 
 // Срез Калаби-Яу: многомерная структура, проекция в 3D.
 const calabiYauSlice = (i, p, out) => {
@@ -313,32 +358,46 @@ const sierpinskiTetra = (i, p, out) => {
   out[2] = z * R + h2(i + 233) * p.radius * 0.06;
 };
 
-// Ковёр Аполлония: итерированные инверсии в окружностях.
+// Ковёр Аполлония: вложенные окружности. Каждый уровень — кольцо окружностей,
+// вписанных в предшествующее; точки заполняют диски окружностей.
 const apollonianGasket = (i, p, out) => {
   const R = p.radius;
-  const u = (i / 2000) * TAU;
-  const v = h(i + 241) * TAU;
-  const r = R * (0.35 + 0.65 * Math.pow(h(i + 242), 0.5));
-  const a = u + 0.5 * Math.sin(3 * u + v);
-  out[0] = r * Math.cos(a) + h2(i + 243) * p.radius * 0.003;
-  out[1] = r * Math.sin(a) * 0.3 * p.flatten + h2(i + 244) * p.radius * 0.003;
-  out[2] = r * Math.sin(v) * 0.4 + h2(i + 245) * p.radius * 0.003;
+  const level = Math.floor(h(i * 5 + 241) * 2);
+  const n = 4 + level * 4;
+  const k = Math.floor(h(i * 5 + 242) * n);
+  const arm = Math.floor(h(i * 5 + 243) * 3);
+  const baseAng = arm * TAU / 3 + k * TAU / n;
+  const centerR = R * (0.2 + 0.5 * Math.pow(0.5, level));
+  const circleR = R * (0.9 / (1 + level)) * (0.7 + 0.3 * h(i * 5 + 244));
+  const cx = centerR * Math.cos(baseAng * (1 + level * 0.5));
+  const cy = centerR * Math.sin(baseAng * (1 + level * 0.5));
+  const ang = h(i * 5 + 245) * TAU;
+  const rr = circleR * Math.sqrt(h(i * 5 + 246));
+  out[0] = cx + rr * Math.cos(ang);
+  out[1] = cy * p.flatten + (h(i * 5 + 247) - 0.5) * R * 0.55;
+  out[2] = rr * Math.sin(ang) * 0.7;
 };
 
-// Мозаика Пенроуза: пятикратная симметрия суммой пяти волн.
+// Мозаика Пенроуза: пятикратная симметрия — сумма пяти волн под углами 72°,
+// отбор точек по порогу: сетка остаётся только там, где волна выше порога.
 const penroseTiling = (i, p, out) => {
-  const R = p.radius * 0.7;
-  const u = (i / 2000) * TAU;
-  const v = h(i + 251) * TAU;
+  const R = p.radius * 0.9;
+  const u = h(i * 3 + 251);
+  const v = h(i * 3 + 252);
+  const w = h(i * 3 + 253);
+  const x = (u - 0.5) * 2 * R;
+  const y = (v - 0.5) * 2 * R;
+  const r = Math.hypot(x, y) || 1;
+  const ang = Math.atan2(y, x);
   let wave = 0;
   for (let k = 0; k < 5; k++) {
-    const ang = u + k * TAU / 5;
-    wave += Math.sin(3 * ang + v + k * 0.7);
+    wave += Math.sin(6 * (ang - k * TAU / 5) + 4 * r / R);
   }
-  const r = R * (0.4 + 0.6 * Math.abs(wave / 5));
-  out[0] = r * Math.cos(u) + h2(i + 252) * p.radius * 0.03;
-  out[1] = r * Math.sin(u) * 0.5 * p.flatten + h2(i + 253) * p.radius * 0.03;
-  out[2] = r * Math.sin(v) * 0.3 + h2(i + 254) * p.radius * 0.03;
+  wave /= 5;
+  const t = Math.abs(wave);
+  out[0] = x + (h2(i + 254) * (1 - t)) * R * 0.25;
+  out[1] = y * p.flatten + (h2(i + 255) * (1 - t)) * R * 0.25;
+  out[2] = (w - 0.5) * R * 0.3 * t;
 };
 
 // Квазикристалл 3D: пятикратная симметрия в трёх измерениях.
@@ -358,16 +417,19 @@ const quasicrystal3d = (i, p, out) => {
   out[2] = r * Math.sin(w) + h2(i + 265) * p.radius * 0.003;
 };
 
-// Диск Пуанкаре {7,3}: гиперболическое замощение, проекция в 3D.
+// Диск Пуанкаре {7,3}: гиперболическое замощение — два кольца с 7-кратной угловой
+// модуляцией; центр пуст, точки заполняют оба кольца, не только многоугольники.
 const poincareDisk73 = (i, p, out) => {
-  const R = p.radius * 0.75;
-  const u = (i / 2000) * TAU;
-  const v = h(i + 271) * TAU;
-  const r = R * Math.tanh(2.0 * h(i + 272));
-  const a = u + 0.3 * Math.sin(7 * u + v);
-  out[0] = r * Math.cos(a) + h2(i + 273) * p.radius * 0.02;
-  out[1] = r * Math.sin(a) * 0.4 * p.flatten + h2(i + 274) * p.radius * 0.02;
-  out[2] = r * Math.sin(v) * 0.3 + h2(i + 275) * p.radius * 0.02;
+  const R = p.radius;
+  const ring = Math.floor(h(i * 4 + 271) * 2);
+  const a = h(i * 4 + 273) * TAU;
+  const t = Math.sqrt(h(i * 4 + 274));
+  const rr = ring === 0 ? R * (0.3 + 0.4 * t) : R * (0.65 + 0.3 * t);
+  const mod = 1.0 + 0.3 * Math.cos(7 * a);
+  const r = rr * mod;
+  out[0] = r * Math.cos(a) + (h(i * 4 + 276) - 0.5) * R * 0.2;
+  out[1] = r * Math.sin(a) * p.flatten + (h(i * 4 + 275) - 0.5) * R * 0.25;
+  out[2] = (h(i * 4 + 277) - 0.5) * R * 0.5;
 };
 
 export const ILLUSION_SHAPES = {
