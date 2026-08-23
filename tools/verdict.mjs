@@ -4,6 +4,11 @@
 //   node tools/verdict.mjs R26 да               принято
 //   node tools/verdict.mjs R26 нет "причина"    не принято, с причиной
 //
+// Модель может записать вердикт со слов человека, сказанных прямо в сессии:
+//   node tools/verdict.mjs R26 да --via-model
+// Тогда в журнале останется «модель со слов человека». Это не защита — подделать
+// «да» модель может, — а честный учёт: видно, какие вердикты человек ставил сам.
+//
 // Зачем. Приёмка глазами двенадцати задач была назначена, но ничем не удерживалась:
 // R25 закрылась отчётом «все гейты прошли», хотя приёмку по контактному листу никто
 // не делал, и семь форм из восьми на листе остались одной и той же. Картинка при этом
@@ -20,9 +25,14 @@ const NL = String.fromCharCode(10);
 const STORE = '.planning/VERDICTS.md';
 const ISSUES = '.planning/ISSUES.md';
 
-const id = (process.argv[2] || '').toUpperCase();
-const answer = (process.argv[3] || '').toLowerCase();
-const reason = process.argv.slice(4).join(' ').replace(/^"|"$/g, '');
+const argv = process.argv.slice(2);
+// --via-model: вердикт записывает модель со слов человека, сказанных в сессии.
+// Сам факт этого попадает в журнал: подделать «да» модель может, скрыть — нет.
+const viaModel = argv.includes('--via-model');
+const clean = argv.filter(a => a !== '--via-model');
+const id = (clean[0] || '').toUpperCase();
+const answer = (clean[1] || '').toLowerCase();
+const reason = clean.slice(2).join(' ').replace(/^"|"$/g, '');
 
 if (!/^[NR]\d+$/.test(id)) {
   console.error('нужен номер задачи: node tools/verdict.mjs R26');
@@ -89,7 +99,8 @@ function readStore() {
   return fs.readFileSync(STORE, 'utf8').split(/\r?\n/)
     .map(l => l.split('|').map(x => x.trim()))
     .filter(c => c.length >= 6 && /^[NR]\d+$/.test(c[1] || ''))
-    .map(c => ({ id: c[1], verdict: c[2], key: c[3], when: c[4], reason: c[5] }));
+    .map(c => ({ id: c[1], verdict: c[2], key: c[3], when: c[4], reason: c[5],
+      who: c[6] || 'человек сам' }));
 }
 
 // Вердикт годится, только если он про эту задачу, принят и снят с ТЕХ ЖЕ картинок.
@@ -112,11 +123,12 @@ function writeVerdict(verdict) {
     'Пишет `node tools/verdict.mjs`, смотрит человек. Вердикт привязан к отпечатку',
     'картинки: поправили код — пересняли — отпечаток другой — нужен новый вердикт.',
     '',
-    '| задача | вердикт | картинки (отпечаток) | когда | причина отказа |',
-    '|---|---|---|---|---|',
+    '| задача | вердикт | картинки (отпечаток) | когда | причина отказа | кто записал |',
+    '|---|---|---|---|---|---|',
   ];
-  rows.push({ id, verdict, key, when, reason });
-  const lines = rows.map(v => '| ' + [v.id, v.verdict, v.key, v.when, v.reason || ''].join(' | ') + ' |');
+  rows.push({ id, verdict, key, when, reason, who: viaModel ? 'модель со слов человека' : 'человек сам' });
+  const lines = rows.map(v => '| '
+    + [v.id, v.verdict, v.key, v.when, v.reason || '', v.who || 'человек сам'].join(' | ') + ' |');
   fs.writeFileSync(STORE, head.concat(lines, ['']).join(NL));
 }
 
@@ -174,6 +186,7 @@ if (!answer) {
     const last = already[already.length - 1];
     const fresh = last.key === key;
     console.log('Прошлый вердикт: ' + last.verdict + ' от ' + last.when
+      + ' (записал: ' + last.who + ')'
       + (fresh ? ' — он про эту же картинку' : ' — картинка с тех пор изменилась, нужен новый'));
     console.log('');
   }
@@ -196,7 +209,9 @@ if (missing.length) {
 
 if (['да', 'yes', 'принято', 'ок'].includes(answer)) {
   writeVerdict('принято');
-  console.log(id + ': принято. Картинки: ' + key);
+  console.log(id + ': принято'
+    + (viaModel ? ' (со слов человека в сессии)' : ' (человек записал сам)')
+    + '. Картинки: ' + key);
   console.log('Теперь finish-task ' + id + ' пройдёт.');
 } else if (['нет', 'no', 'отказ', 'не'].includes(answer)) {
   if (!reason) {
