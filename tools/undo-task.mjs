@@ -41,7 +41,7 @@ try {
   console.log('коммит ' + sha.slice(0, 8) + ' отменён');
 } catch (e) {
   console.error('revert не удался (вероятно конфликт): ' + String(e.message).split(/\r?\n/)[0]);
-  console.error('разрули вручную: git revert --abort, затем скажи Клоду');
+  console.error('разрули вручную: git revert --abort, дальше разбирайся по git status');
   process.exit(1);
 }
 

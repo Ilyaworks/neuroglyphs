@@ -29,7 +29,7 @@ function refuse(what, out) {
   console.error(out.trim().split(NL).slice(-25).join(NL));
   console.error('');
   console.error('Задача осталась todo, коммита нет. Исправь причину и запусти finish-task снова.');
-  console.error('Если не получается — напечатай: ПРОВАЛ ' + id + ', покажи этот вывод Клоду.');
+  console.error('Если не получается три раза — отложи: node tools/blocked.mjs ' + id + ' "почему"');
   process.exit(1);
 }
 
@@ -317,37 +317,27 @@ const reviewFile = '.planning/review/' + id + '.md';
 const hasNotes = fs.existsSync(reviewFile) &&
   /## (нарушения|предупреждения)/.test(fs.readFileSync(reviewFile, 'utf8'));
 const everyThird = doneCount % 3 === 0;
-const askReport = true;
-
 console.log('');
 console.log('#'.repeat(78));
 console.log('ЧТО ДЕЛАТЬ ЧЕЛОВЕКУ СЕЙЧАС');
 console.log('#'.repeat(78));
 if (milestone) {
-  console.log('Закрыта демо-точка ' + milestone + '. Новую сессию пока НЕ начинай.');
-  console.log('Открой http://localhost:5173 (сервер: npm run dev), посмотри результат');
-  console.log('и покажи Клоду: что видно на экране и вывод последней проверки.');
-  if (eyes) console.log('Смотреть именно на это: ' + eyes);
-  console.log('Клод сверит с референсом и скажет, идём дальше или добираем.');
+  console.log('Закрыта демо-точка ' + milestone + ' — это точка сравнения с референсом.');
+  console.log('Открой http://localhost:5173 (сервер: npm run dev) и посмотри сам.');
+  console.log('Сверяться по списку признаков: .planning/REFERENCE.md');
 } else if (eyes) {
-  console.log('Задача с визуальной приёмкой. Открой http://localhost:5173 и проверь:');
-  console.log('  ' + eyes);
-  console.log('Так — начинай новую сессию строкой ниже. Не так — напиши Клоду, что видишь.');
+  console.log('Задача с приёмкой глазами — её вердикт ты уже дал, иначе она бы не');
+  console.log('закрылась. Смотреть заново не нужно.');
 } else {
-  console.log('Проверять глазами тут нечего. Просто начинай новую сессию строкой ниже.');
+  console.log('Приёмка глазами тут не назначена — закрыли гейты. Делать нечего.');
 }
-if (askReport) {
+if (hasNotes) {
   console.log('');
-  console.log('СООБЩЕНИЕ КЛОДУ. Повод: ' +
-    (milestone ? 'закрыта демо-точка ' + milestone
-      : hasNotes ? 'аудит оставил замечания по ' + id
-      : eyes ? 'задача с визуальной приёмкой'
-      : 'обычный отчёт по задаче, закрыто задач: ' + doneCount) + '.');
-  console.log('Выполни и отправь весь вывод Клоду, вместе со скриншотом из списка внизу:');
-  console.log('');
-  console.log('  node tools/report.mjs');
-  console.log('');
+  console.log('Аудит оставил замечания по ' + id + ': .planning/review/' + id + '.md');
+  console.log('Загляни туда, если что-то пойдёт не так дальше.');
 }
+console.log('');
+console.log('Закрыто задач: ' + doneCount + '. Подробный отчёт, если нужен: node tools/report.mjs');
 console.log('');
 console.log('Строка для новой сессии (всегда одна и та же):');
 console.log('');

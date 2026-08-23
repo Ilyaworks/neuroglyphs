@@ -54,7 +54,7 @@ const ALWAYS_OK = [
 if (changed.includes('.planning/ISSUES.md')) {
   blockers.push('менялся .planning/ISSUES.md — это текст задач, его правит только ' +
     'проверяющий. Если условие задачи неверное или невыполнимое, задачу не закрывают: ' +
-    'печатают ПРОВАЛ ' + id + ' и передают вывод Клоду.');
+    'печатают ПРОВАЛ ' + id + ' и откладывают задачу через tools/blocked.mjs.');
 }
 
 for (const f of changed) {
