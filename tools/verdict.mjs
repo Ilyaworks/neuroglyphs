@@ -161,6 +161,8 @@ if (answer === '--check') {
   process.exit(1);
 }
 
+
+
 // ---- режим печати: что проверить ----------------------------------------------
 if (!answer) {
   const items = checklistOf(body);
@@ -190,7 +192,26 @@ if (!answer) {
       + (fresh ? ' — он про эту же картинку' : ' — картинка с тех пор изменилась, нужен новый'));
     console.log('');
   }
-  console.log('Ответить:');
+  console.log('-'.repeat(78));
+  console.log('ОТВЕТИТЬ: скопируйте одну строку и вставьте в чат модели');
+  console.log('-'.repeat(78));
+  console.log('');
+  console.log('  Если все пункты сошлись:');
+  console.log('');
+  console.log('      принято');
+  console.log('');
+  console.log('  Если что-то не так — назовите номера пунктов и что видите:');
+  console.log('');
+  console.log('      не принято: пункт 1 — <что видите своими словами>');
+  if (items.length > 2) {
+    console.log('      не принято: пункты 1 и 3 — <что видите своими словами>');
+  }
+  console.log('');
+  console.log('Хватит и одного слова «принято» — модель сама запишет вердикт и закроет');
+  console.log('задачу. «Ок», «продолжай», «давай дальше» вердиктом НЕ считаются: на них');
+  console.log('модель обязана переспросить.');
+  console.log('');
+  console.log('Если хотите записать вердикт своей рукой, а не через модель:');
   console.log('  node tools/verdict.mjs ' + id + ' да');
   console.log('  node tools/verdict.mjs ' + id + ' нет "что именно не так"');
   console.log('');
