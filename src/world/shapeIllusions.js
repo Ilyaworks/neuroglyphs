@@ -111,8 +111,8 @@ function spiralRing(i, R, a, b, out) {
   out[2] = rr * Math.sin(phi);
 }
 
-// Ядро + кольцо + рассеянный слой для заполненности объёма.
-function dipForm(i, p, coreSalt, coreR, ringFn, ringArgs, out) {
+// Ядро + кольцо + рассеянный слой, следующий полосе кольца этой формы.
+function dipForm(i, p, coreSalt, coreR, ringFn, ringArgs, out, scatter) {
   const R = p.radius;
   const sel = h(i * 7 + coreSalt);
   if (sel < 0.30) {
@@ -120,26 +120,53 @@ function dipForm(i, p, coreSalt, coreR, ringFn, ringArgs, out) {
   } else if (sel < 0.85) {
     ringFn(i, R, ...ringArgs, out);
   } else {
-    // рассеянный слой: точки в объёме кольца, чтобы заполнить ячейки
-    const u = h(i * 3 + 901);
-    const v = h(i * 3 + 902);
-    const w = h(i * 3 + 903);
+    // рассеянный слой: точки в объёме полосы кольца этой формы, соль формы в хеши
+    const u = h(i * 3 + 901 + coreSalt);
+    const v = h(i * 3 + 902 + coreSalt);
+    const w = h(i * 3 + 903 + coreSalt);
     const phi = v * TAU;
-    const rr = R * (0.5 + w * 0.5);
+    const rr = R * (scatter.a + w * (scatter.b - scatter.a));
     out[0] = rr * Math.cos(phi);
-    out[1] = (h(i * 3 + 904) - 0.5) * R * 0.5;
+    out[1] = (h(i * 3 + 904 + coreSalt) - 0.5) * R * scatter.thick;
     out[2] = rr * Math.sin(phi);
   }
 }
 
-const ringedVoid = (i, p, out) => dipForm(i, p, 1, 0.16, diskRing, [0.62, 0.98], out);
-const coreHalo = (i, p, out) => dipForm(i, p, 2, 0.15, beltRing, [0.65, 0.95], out);
-const shellPair = (i, p, out) => dipForm(i, p, 3, 0.14, petalRing, [0.62, 0.98, 5], out);
-const lobedCore = (i, p, out) => dipForm(i, p, 4, 0.13, petalRing, [0.62, 0.98, 6], out);
-const bandedRing = (i, p, out) => dipForm(i, p, 5, 0.12, spiralRing, [0.62, 0.98], out);
-const haloShell = (i, p, out) => dipForm(i, p, 6, 0.11, petalRing, [0.62, 0.98, 7], out);
-const annulusCore = (i, p, out) => dipForm(i, p, 7, 0.10, ribRing, [0.58, 0.98, 9], out);
-const twinShell = (i, p, out) => dipForm(i, p, 8, 0.09, beltRing, [0.62, 0.98], out);
+// Кольцо Е: узкое кольцо на одном радиусе c, толщина по y задаётся flatten.
+function tubeRing(i, R, c, width, flatten, out) {
+  const u = h(i * 3 + 751);
+  const v = h(i * 3 + 752);
+  const w = h(i * 3 + 753);
+  const phi = v * TAU;
+  const rr = R * (c + (w - 0.5) * width);
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 754) - 0.5) * R * width * 2.2 * flatten;
+  out[2] = rr * Math.sin(phi);
+}
+
+// Кольцо Ж: два раздельных тонких кольца на радиусах c1 и c2.
+function twinTubeRing(i, R, c1, c2, width, flatten, out) {
+  const u = h(i * 3 + 761);
+  const v = h(i * 3 + 762);
+  const w = h(i * 3 + 763);
+  const c = u < 0.5 ? c1 : c2;
+  const phi = v * TAU;
+  const rr = R * (c + (w - 0.5) * width);
+  out[0] = rr * Math.cos(phi);
+  out[1] = (h(i * 3 + 764) - 0.5) * R * width * 2.2 * flatten;
+  out[2] = rr * Math.sin(phi);
+}
+
+// Восемь форм с разными радиальными силуэтами: разные полосы кольца,
+// толщина по y, раздельные кольца, разные размеры ядра.
+const ringedVoid = (i, p, out) => dipForm(i, p, 1, 0.18, tubeRing, [0.50, 0.08, 0.3], out, { a: 0.48, b: 0.58, thick: 0.25 });
+const coreHalo = (i, p, out) => dipForm(i, p, 2, 0.17, diskRing, [0.80, 1.00], out, { a: 0.78, b: 1.00, thick: 0.3 });
+const shellPair = (i, p, out) => dipForm(i, p, 3, 0.16, diskRing, [0.40, 0.95], out, { a: 0.40, b: 0.95, thick: 0.3 });
+const lobedCore = (i, p, out) => dipForm(i, p, 4, 0.15, tubeRing, [0.74, 0.08, 0.9], out, { a: 0.70, b: 0.78, thick: 0.35 });
+const bandedRing = (i, p, out) => dipForm(i, p, 5, 0.14, petalRing, [0.62, 0.98, 5], out, { a: 0.62, b: 0.98, thick: 0.3 });
+const haloShell = (i, p, out) => dipForm(i, p, 6, 0.13, petalRing, [0.62, 0.98, 7], out, { a: 0.62, b: 0.98, thick: 0.3 });
+const annulusCore = (i, p, out) => dipForm(i, p, 7, 0.12, ribRing, [0.58, 0.98, 9], out, { a: 0.58, b: 0.98, thick: 0.55 });
+const twinShell = (i, p, out) => dipForm(i, p, 8, 0.09, twinTubeRing, [0.55, 0.90, 0.08, 0.5], out, { a: 0.52, b: 0.94, thick: 0.3 });
 
 // ---- семья 2: настоящие параметризации ----
 
@@ -152,9 +179,9 @@ function torusKnotFn(a, b) {
     const cu = Math.cos(a * t), su = Math.sin(a * t);
     const w = b * t;
     const cx = R + r * Math.cos(w);
-    out[0] = cx * cu + h2(i + 101) * p.radius * 0.06;
-    out[1] = r * Math.sin(w) * p.flatten + h2(i + 102) * p.radius * 0.06;
-    out[2] = cx * su + h2(i + 103) * p.radius * 0.06;
+    out[0] = cx * cu + h2(i + 101) * p.radius * 0.12;
+    out[1] = r * Math.sin(w) * p.flatten + h2(i + 102) * p.radius * 0.12;
+    out[2] = cx * su + h2(i + 103) * p.radius * 0.12;
   };
 }
 
@@ -170,9 +197,9 @@ function mobiusFn(k) {
     const v = (h(i + 111) - 0.5) * 2 * w;
     const cu = Math.cos(u), su = Math.sin(u);
     const ck = Math.cos(k * u / 2), sk = Math.sin(k * u / 2);
-    out[0] = (R + v * ck) * cu;
-    out[1] = v * sk * p.flatten;
-    out[2] = (R + v * ck) * su;
+    out[0] = (R + v * ck) * cu + h2(i + 114) * p.radius * 0.08;
+    out[1] = v * sk * p.flatten + h2(i + 115) * p.radius * 0.08;
+    out[2] = (R + v * ck) * su + h2(i + 116) * p.radius * 0.08;
   };
 }
 
@@ -225,9 +252,9 @@ const romanSurface = (i, p, out) => {
 const lissajousKnot = (i, p, out) => {
   const R = p.radius * 0.55;
   const t = (i / 2000) * TAU;
-  out[0] = R * Math.sin(3 * t + Math.PI / 2) + h2(i + 151) * p.radius * 0.05;
-  out[1] = R * Math.sin(4 * t) * p.flatten + h2(i + 152) * p.radius * 0.05;
-  out[2] = R * Math.sin(5 * t) + h2(i + 153) * p.radius * 0.05;
+    out[0] = R * Math.sin(3 * t + Math.PI / 2) + h2(i + 151) * p.radius * 0.10;
+    out[1] = R * Math.sin(4 * t) * p.flatten + h2(i + 152) * p.radius * 0.10;
+    out[2] = R * Math.sin(5 * t) + h2(i + 153) * p.radius * 0.10;
 };
 
 // Тор Кливфорда: (R + cos(pu)sin(v))cos(u), (R + cos(pu)sin(v))sin(u), sin(pu)cos(v).
@@ -238,9 +265,9 @@ const cliffordTorus = (i, p, out) => {
   const pu = p.knotP * u;
   const cv = Math.cos(v), sv = Math.sin(v);
   const cu = Math.cos(u), su = Math.sin(u);
-  out[0] = (R + Math.cos(pu) * sv) * cu + h2(i + 162) * p.radius * 0.05;
-  out[1] = Math.sin(pu) * cv * p.flatten + h2(i + 163) * p.radius * 0.05;
-  out[2] = (R + Math.cos(pu) * sv) * su + h2(i + 164) * p.radius * 0.05;
+    out[0] = (R + Math.cos(pu) * sv) * cu + h2(i + 162) * p.radius * 0.15;
+    out[1] = Math.sin(pu) * cv * p.flatten + h2(i + 163) * p.radius * 0.15;
+    out[2] = (R + Math.cos(pu) * sv) * su + h2(i + 164) * p.radius * 0.15;
 };
 
 // Катеноид-геликоид: семейство минимальных поверхностей.
@@ -267,10 +294,9 @@ const ennepersSurface = (i, p, out) => {
   out[2] = R * sv * cv + h2(i + 184) * p.radius * 0.01;
 };
 
-// Гироид: куб из нескольких периодов, точки отобраны по
-// |sin x·cos y + sin y·cos z + sin z·cos x| < eps — повторяющаяся ячейка лабиринта.
-// Точки вне поверхности прижимаются к ней, поэтому объём заполнен, а не пуст.
-function periodicSurface(i, p, salt, periods, eps, out) {
+// Периодическая минимальная поверхность: куб из нескольких периодов, точки
+// прижимаются к нулевому уровню функции f — повторяющаяся ячейка лабиринта.
+function periodicSurface(i, p, salt, periods, f, gradF, eps, out) {
   const R = p.radius;
   const side = R * 1.4;
   const cell = side / periods;
@@ -283,29 +309,42 @@ function periodicSurface(i, p, salt, periods, eps, out) {
   let x = (ix + fx - periods / 2) * cell;
   let y = (iy + fy - periods / 2) * cell;
   let z = (iz + fz - periods / 2) * cell;
-  const f = Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z) + Math.sin(z) * Math.cos(x);
-  const af = Math.abs(f);
+  const f0 = f(x, y, z);
+  const af = Math.abs(f0);
   if (af > eps) {
     // прижимаем к поверхности: сдвигаем вдоль градиента на (af - eps)
-    const gx = Math.cos(x) * Math.cos(y) - Math.sin(y) * Math.sin(z) - Math.cos(z) * Math.sin(x);
-    const gy = -Math.sin(x) * Math.sin(y) + Math.cos(y) * Math.cos(z);
-    const gz = -Math.sin(x) * Math.sin(z) + Math.cos(y) * Math.sin(y) - Math.cos(z) * Math.cos(x);
-    const gl = Math.hypot(gx, gy, gz) || 1;
+    const g = gradF(x, y, z);
+    const gl = Math.hypot(g[0], g[1], g[2]) || 1;
     const s = (af - eps) / (gl * cell) * 0.5;
-    x -= gx / gl * s * cell;
-    y -= gy / gl * s * cell;
-    z -= gz / gl * s * cell;
+    x -= g[0] / gl * s * cell;
+    y -= g[1] / gl * s * cell;
+    z -= g[2] / gl * s * cell;
   }
-  const j = cell * 0.45;
+  const j = cell * 0.7;
   out[0] = x + (h(i * 3 + salt + 6) - 0.5) * j;
   out[1] = (y + (h(i * 3 + salt + 7) - 0.5) * j) * p.flatten;
   out[2] = z + (h(i * 3 + salt + 8) - 0.5) * j;
 }
 
-const gyroid = (i, p, out) => periodicSurface(i, p, 191, 3, 0.45, out);
+// Гироид: sin x·cos y + sin y·cos z + sin z·cos x = 0, три периода по каждой оси.
+const gyroid = (i, p, out) => periodicSurface(i, p, 191, 3,
+  (x, y, z) => Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z) + Math.sin(z) * Math.cos(x),
+  (x, y, z) => [
+    Math.cos(x) * Math.cos(y) - Math.sin(y) * Math.sin(z) - Math.cos(z) * Math.sin(x),
+    -Math.sin(x) * Math.sin(y) + Math.cos(y) * Math.cos(z),
+    -Math.sin(x) * Math.sin(z) + Math.cos(y) * Math.sin(y) - Math.cos(z) * Math.cos(x),
+  ],
+  0.45, out);
 
-// Поверхность Шварца P: та же периодическая конструкция, другие период и порог.
-const schwarzP = (i, p, out) => periodicSurface(i, p, 201, 2, 0.55, out);
+// Поверхность Шварца P: sin x·sin y + sin y·sin z + sin z·sin x = 0, два периода.
+const schwarzP = (i, p, out) => periodicSurface(i, p, 201, 2,
+  (x, y, z) => Math.sin(x) * Math.sin(y) + Math.sin(y) * Math.sin(z) + Math.sin(z) * Math.sin(x),
+  (x, y, z) => [
+    Math.cos(x) * Math.sin(y) + Math.cos(z) * Math.sin(x),
+    Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z),
+    Math.sin(y) * Math.cos(z) + Math.cos(z) * Math.sin(x),
+  ],
+  0.55, out);
 
 // Срез Калаби-Яу: многомерная структура, проекция в 3D.
 const calabiYauSlice = (i, p, out) => {
@@ -378,26 +417,35 @@ const apollonianGasket = (i, p, out) => {
   out[2] = rr * Math.sin(ang) * 0.7;
 };
 
-// Мозаика Пенроуза: пятикратная симметрия — сумма пяти волн под углами 72°,
-// отбор точек по порогу: сетка остаётся только там, где волна выше порога.
+// Мозаика Пенроуза: пятикратная симметрия — сумма пяти радиальных волн
+// sin(5·ang + k·r), инвариантна к повороту на 72°. Точки прижимаются к нулям
+// волны: остаются пять лучей с поперечными штрихами, как в настоящем замощении.
 const penroseTiling = (i, p, out) => {
   const R = p.radius * 0.9;
   const u = h(i * 3 + 251);
   const v = h(i * 3 + 252);
   const w = h(i * 3 + 253);
-  const x = (u - 0.5) * 2 * R;
-  const y = (v - 0.5) * 2 * R;
+  let x = (u - 0.5) * 2 * R;
+  let y = (v - 0.5) * 2 * R;
   const r = Math.hypot(x, y) || 1;
   const ang = Math.atan2(y, x);
   let wave = 0;
   for (let k = 0; k < 5; k++) {
-    wave += Math.sin(6 * (ang - k * TAU / 5) + 4 * r / R);
+    wave += Math.sin(5 * ang + (k + 1) * 2.0 * r / R);
   }
   wave /= 5;
-  const t = Math.abs(wave);
-  out[0] = x + (h2(i + 254) * (1 - t)) * R * 0.25;
-  out[1] = y * p.flatten + (h2(i + 255) * (1 - t)) * R * 0.25;
-  out[2] = (w - 0.5) * R * 0.3 * t;
+  if (Math.abs(wave) > 0.3) {
+    // прижимаем к нулю волны: сдвиг по радиальной и угловой составляющей
+    const dr = 0.3 * R / 2.0;
+    const da = 0.3 / 5;
+    const nr = r - Math.sign(wave) * dr * 0.6;
+    const na = ang + Math.sign(wave) * da * 0.6;
+    x = nr * Math.cos(na);
+    y = nr * Math.sin(na);
+  }
+  out[0] = x + h2(i + 254) * R * 0.30;
+  out[1] = y * p.flatten + h2(i + 255) * R * 0.30;
+  out[2] = (w - 0.5) * R * 0.45;
 };
 
 // Квазикристалл 3D: пятикратная симметрия в трёх измерениях.
@@ -427,9 +475,9 @@ const poincareDisk73 = (i, p, out) => {
   const rr = ring === 0 ? R * (0.3 + 0.4 * t) : R * (0.65 + 0.3 * t);
   const mod = 1.0 + 0.3 * Math.cos(7 * a);
   const r = rr * mod;
-  out[0] = r * Math.cos(a) + (h(i * 4 + 276) - 0.5) * R * 0.2;
-  out[1] = r * Math.sin(a) * p.flatten + (h(i * 4 + 275) - 0.5) * R * 0.25;
-  out[2] = (h(i * 4 + 277) - 0.5) * R * 0.5;
+  out[0] = r * Math.cos(a) + (h(i * 4 + 276) - 0.5) * R * 0.35;
+  out[1] = r * Math.sin(a) * p.flatten + (h(i * 4 + 275) - 0.5) * R * 0.4;
+  out[2] = (h(i * 4 + 277) - 0.5) * R * 0.7;
 };
 
 export const ILLUSION_SHAPES = {
