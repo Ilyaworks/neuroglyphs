@@ -14,9 +14,14 @@ import { assemble } from "./grammar.js";
 import { buildHall } from "./halls.js";
 import { buildHallField } from "./hallField.js";
 
-// Стены участков пишутся без решётки: она даёт семь тысяч точек на стену, и город из
-// десяти участков встал бы колом. Решётка остаётся залу — он того стоит.
-const CITY_WALL_MARKS = ["string", "edge", "panel", "emblem", "formula"];
+// Стена города обязана быть СПЛОШНОЙ: сквозь редкую россыпь знаков видно весь город
+// разом, и он читается макетом, а не местом. Сплошной её делает крупная плитка обоев —
+// знаки в ней стоят вплотную и перекрывают друг друга.
+//
+// Плитка КРУПНАЯ намеренно: мелкая дала бы ту же сплошность за пятнадцать тысяч точек
+// на стену, а таких стен в городе четыре десятка. Крупная стоит тысячу с небольшим.
+const CITY_WALL_MARKS = ["lattice", "string", "edge", "panel", "emblem", "formula"];
+const CITY_WALL_TILE = 0.085;
 const CITY_FLOOR_MARKS = ["pattern", "marking"];
 
 function footprintOf(variant, samples = 200) {
@@ -96,6 +101,28 @@ export function buildCityField(city, language, atlas, opts = {}) {
       seed + ":" + area.id, { count: 4 + Math.floor(rng() * 4) });
     bodies.push({ area, variant, scale, places: built.places, lift: fp.lo[1] });
     total += variant.count * built.places.length;
+
+    // Предметы: одиночные вещи СЛУЧАЙНОЙ формы, стоящие по участку. Постройка задаёт
+    // строй, предметы его разбивают — без них участок читается образцом застройки,
+    // а не местом, где что-то произошло.
+    const things = 1 + Math.floor(rng() * 3);
+    for (let k = 0; k < things; k++) {
+      const tf = language.forms[Math.floor(rng() * language.forms.length)];
+      const tv = language.variantOf(tf, mulberry32(strToSeed(seed + ":thing" + area.id + ":" + k)));
+      const tfp = footprintOf(tv);
+      // Размер вещи — от четверти до полутора ростов игрока по ширине: это предмет,
+      // а не здание. Здания строит грамматика, вещи стоят между ними.
+      const tw = 18 * (0.6 + rng() * 2.2);
+      const ts = tw / tfp.size[0];
+      // Ставим ближе к краю участка, чтобы проход посередине оставался свободным.
+      const a = rng() * Math.PI * 2;
+      const r = area.size[0] * (0.2 + rng() * 0.22);
+      bodies.push({
+        area, variant: tv, scale: ts, lift: tfp.lo[1],
+        places: [{ at: [Math.cos(a) * r, 0, Math.sin(a) * r], scale: 1, turn: rng() * Math.PI * 2, stretch: [1, 1, 1] }],
+      });
+      total += tv.count;
+    }
   }
 
   if (total) {
@@ -200,6 +227,7 @@ export function buildCityField(city, language, atlas, opts = {}) {
     const built = buildSurfaceField(seed + ":" + item.role, item.spec, atlas, {
       marks: item.marks, language, fogDensity: opts.fogDensity, spectrum: opts.spectrum,
       salt: item.role,
+      tile: item.role.startsWith("wall:") ? CITY_WALL_TILE : undefined,
     });
     if (opts.uPulse) built.uniforms.uPulse = opts.uPulse;
     if (opts.uTime) built.uniforms.uTime = opts.uTime;

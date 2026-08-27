@@ -13,7 +13,10 @@
 import { mulberry32, strToSeed } from "../core/rng.js";
 
 const PLAYER = 18;
-const CELL = 560;          // шаг сетки участков
+// Шаг сетки. Был 560 — это двадцать семь ростов игрока на участок, площадь размером
+// с квартал. Пространство от этого казалось пустым: идёшь долго, а вокруг ничего.
+// Городская улица — это несколько ростов в ширину, а не тридцать.
+const CELL = 330;          // шаг сетки участков
 const AREA = CELL * 0.86;  // сам участок чуть меньше клетки: между ними остаются стены
 
 export const AREA_KINDS = ["hall", "street", "colonnade", "tower", "court", "tunnel", "yard", "gallery"];
@@ -23,6 +26,14 @@ export const AREA_KINDS = ["hall", "street", "colonnade", "tower", "court", "tun
 export const AREA_RULE = {
   hall: "mirror", street: "grid", colonnade: "row", tower: "stack",
   court: "fan", tunnel: "axis", yard: "grid", gallery: "row",
+};
+
+// Высота участка в РОСТАХ ИГРОКА, а не в отвлечённых единицах. Была 340..540 при росте
+// 18 — то есть стены в двадцать-тридцать этажей вокруг каждого дворика. Настоящий город
+// так не устроен: двор низкий, улица в несколько этажей, башня высокая, зал высокий.
+const AREA_HEIGHT = {
+  yard: [2.5, 4], court: [3, 5], street: [4, 7], gallery: [4, 6],
+  colonnade: [5, 8], tunnel: [3.5, 5], tower: [9, 16], hall: [8, 12],
 };
 
 const key = (i, j) => i + ":" + j;
@@ -67,7 +78,7 @@ export function buildCity(seedCode, language, opts = {}) {
     return {
       id, kind, rule: AREA_RULE[kind], cell: [i, j],
       center: [i * CELL, floorY, -j * CELL],
-      size: [AREA, 340 + rng() * 200, AREA],
+      size: [AREA, PLAYER * (AREA_HEIGHT[kind][0] + rng() * (AREA_HEIGHT[kind][1] - AREA_HEIGHT[kind][0])), AREA],
       floorY,
     };
   });
@@ -164,7 +175,11 @@ export function buildCity(seedCode, language, opts = {}) {
   const mid = areas
     .filter((a) => a !== start && a !== end)
     .sort((p, q) => Math.abs(dist(p, start) - dist(p, end)) - Math.abs(dist(q, start) - dist(q, end)))[0];
-  if (mid) { mid.kind = "hall"; mid.rule = AREA_RULE.hall; }
+  if (mid) {
+    mid.kind = "hall";
+    mid.rule = AREA_RULE.hall;
+    mid.size = [mid.size[0], PLAYER * (AREA_HEIGHT.hall[0] + 4), mid.size[2]];
+  }
 
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   for (const a of areas) {

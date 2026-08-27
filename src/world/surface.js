@@ -103,7 +103,7 @@ const wrap01 = (v) => ((v % 1) + 1) % 1;
 // Что и куда кладём. Сначала список замыслов, потом одна общая укладка — так видно,
 // что композиция решается сидом, а не порядком строк в коде.
 
-function planSurface(spec, rng, allow, extent, language) {
+function planSurface(spec, rng, allow, extent, language, opts = {}) {
   const plan = [];
   const has = (k) => allow.includes(k);
   const between = (a, b) => a + Math.floor(rng() * (b - a + 1));
@@ -124,10 +124,16 @@ function planSurface(spec, rng, allow, extent, language) {
   // Решётка: плитка обоев по всей поверхности. Плитку кладём сеткой, а не наугад —
   // рассыпанные наугад плитки читаются грязью, а не покрытием.
   if (has("lattice")) {
-    const tile = (0.018 + rng() * 0.016) * extent;
+    // Плитка обоев. opts.tile задаёт её крупность долей габарита: у стены города плитка
+    // крупная, у сферы в зале мелкая.
+    const want = (opts.tile || (0.018 + rng() * 0.016)) * extent;
     const [su, sv] = paramScale(spec, 0.5);
-    const ns = Math.max(2, Math.min(14, Math.round(su / tile)));
-    const nt = Math.max(2, Math.min(14, Math.round(sv / tile)));
+    const ns = Math.max(2, Math.min(24, Math.round(su / want)));
+    const nt = Math.max(2, Math.min(24, Math.round(sv / want)));
+    // Размер плитки берётся ИЗ СЕТКИ, а не наоборот. Пока плитка была задана заранее,
+    // а число плиток упиралось в потолок, на широкой стене они покрывали треть площади
+    // и стена просвечивала насквозь: между плитками зияли дыры шириной с них самих.
+    const tile = Math.max(su / ns, sv / nt);
     for (let i = 0; i < ns; i++) {
       for (let j = 0; j < nt; j++) {
         plan.push({
@@ -179,7 +185,7 @@ export function buildSurface(seedCode, spec, opts = {}) {
   // поверхности больше. Без этого каждая стена тянет случайную смесь из девяти родов,
   // и мир читается кучей малой, а не постройкой в одной манере.
   const language = opts.language || null;
-  const plan = planSurface(spec, rng, allow, extent, language);
+  const plan = planSurface(spec, rng, allow, extent, language, opts);
 
   // Знаки строятся заранее: так сид тратится одним потоком и раскладка повторяема.
   const built = plan.map((slot) => ({
