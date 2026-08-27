@@ -66,6 +66,7 @@ function points(n, atlasTexture, uniforms, fill) {
   const pos = new Float32Array(n * 3);
   const glyph = new Float32Array(n);
   const size = new Float32Array(n);
+  const kindArr = new Float32Array(n);
   const offset = new Float32Array(n);
   const fade = new Float32Array(n);
   const out = [0, 0, 0, 0, 0, 0, 0];
@@ -74,16 +75,47 @@ function points(n, atlasTexture, uniforms, fill) {
       fill(i, out);
       pos[i * 3] = out[0]; pos[i * 3 + 1] = out[1]; pos[i * 3 + 2] = out[2];
       glyph[i] = out[3]; size[i] = out[4]; offset[i] = out[5]; fade[i] = out[6];
+      kindArr[i] = out[7] || 0;
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   g.setAttribute("glyph", new THREE.BufferAttribute(glyph, 1));
   g.setAttribute("size", new THREE.BufferAttribute(size, 1));
+  g.setAttribute("kind", new THREE.BufferAttribute(kindArr, 1));
   g.setAttribute("offset", new THREE.BufferAttribute(offset, 1));
   g.setAttribute("fade", new THREE.BufferAttribute(fade, 1));
   g.computeBoundingSphere();
   return new THREE.Points(g, material(atlasTexture, uniforms));
+}
+
+// ── рисунок пола (задача N68) ────────────────────────────────────────────────
+// Пол на референсе не пустое зеркало: по нему рассыпаны крупные знаки, идут длинные
+// светящиеся дуги разметки, в зале лежит шахматная клетка. Роды и масштабы берутся
+// из того же словаря, что и прочие поверхности (marks.js), поэтому у точек плоскости
+// появляются атрибуты kind и несколько разных size.
+export const FLOOR_MARK_KINDS = ["emblem", "string", "lattice", "pattern", "marking"];
+
+// Какой рисунок лежит в какой локации. Пожелание «род рисунка зависит от локации»
+// проверяется числом, а не на слово.
+const BY_LOCATION = {
+  city:   ["marking", "emblem", "lattice"],
+  hall:   ["pattern", "lattice", "string"],
+  tunnel: ["pattern", "marking", "lattice"],
+  open:   ["emblem", "lattice", "string"],
+};
+
+const MARK_SCALE = { emblem: 9.0, string: 2.2, lattice: 0.4, pattern: 6.0, marking: 12.0 };
+
+export function floorMarks(seedCode, location, rng) {
+  const m = globalThis.__FLOOR_MUTATE || "";
+  let kinds = BY_LOCATION[m === "sameloc" ? "open" : (location || "open")] || BY_LOCATION.open;
+  if (m === "onekind") kinds = [kinds[0]];
+  return kinds.map((k) => ({
+    kind: k,
+    index: FLOOR_MARK_KINDS.indexOf(k),
+    scale: m === "onescale" ? 3 : MARK_SCALE[k],
+  }));
 }
 
 export function buildFloor(seedCode, world, opts = {}) {
@@ -157,25 +189,99 @@ export function buildFloor(seedCode, world, opts = {}) {
     const spanZ = m === "fixedplane" ? 200 : Math.max(1, bounds.size[2]) * pad;
     const cx = m === "fixedplane" ? 0 : (bounds.min[0] + bounds.max[0]) / 2;
     const cz = m === "fixedplane" ? 0 : (bounds.min[2] + bounds.max[2]) / 2;
-    const nx = 48, nz = 48;
     const half = Math.hypot(spanX, spanZ) / 2;
-    const glyphs = new Float32Array(nx * nz);
-    const offs = new Float32Array(nx * nz);
-    for (let i = 0; i < nx * nz; i++) { glyphs[i] = Math.floor(rng() * 128); offs[i] = rng(); }
-    const plane = points(nx * nz, atlasTexture, uniforms, (i, out) => {
-      const ix = i % nx, iz = Math.floor(i / nx);
-      const x = cx - spanX / 2 + (spanX * ix) / (nx - 1);
-      const z = cz - spanZ / 2 + (spanZ * iz) / (nz - 1);
+
+    // Рисунок пола: несколько родов, у каждого свой масштаб. Решётка мелкая и частая,
+    // эмблемы крупные и редкие, разметка — длинные дуги через весь пол.
+    const marks = floorMarks(seedCode, opts.location, rng);
+    const prepared = [];
+    for (const mk of marks) {
+      if (mk.kind === "lattice" || mk.kind === "pattern") {
+        const n = mk.kind === "lattice" ? 44 : 20;
+        for (let ix = 0; ix < n; ix++) for (let iz = 0; iz < n; iz++) {
+          if (mk.kind === "pattern" && (ix + iz) % 2) continue;
+          prepared.push([
+            cx - spanX / 2 + (spanX * ix) / (n - 1),
+            cz - spanZ / 2 + (spanZ * iz) / (n - 1),
+            mk.scale, mk.index, rng, 0,
+          ]);
+        }
+      } else if (mk.kind === "marking") {
+        // Разметка идёт СВЯЗНЫМИ линиями: две длинные дуги через весь пол. Если рисовать
+        // её россыпью, она перестаёт уводить взгляд, а именно за это она на референсе.
+        const dots = globalThis.__FLOOR_MUTATE === "dots";
+        for (let line = 0; line < 2; line++) {
+          for (let k = 0; k < 260; k++) {
+            const t = k / 259;
+            if (dots) {
+              prepared.push([cx + (rng() - 0.5) * spanX, cz + (rng() - 0.5) * spanZ,
+                mk.scale, mk.index, rng, 1]);
+            } else {
+              const off = (line - 0.5) * spanZ * 0.22;
+              prepared.push([
+                cx - spanX / 2 + spanX * t,
+                cz + off + Math.sin(t * Math.PI) * spanZ * 0.1,
+                mk.scale, mk.index, rng, 1,
+              ]);
+            }
+          }
+        }
+      } else {
+        const n = mk.kind === "emblem" ? 6 : 40;
+        for (let e = 0; e < n; e++) {
+          const ex = cx + (rng() - 0.5) * spanX * 0.8;
+          const ez = cz + (rng() - 0.5) * spanZ * 0.8;
+          const per = mk.kind === "emblem" ? 90 : 24;
+          for (let k = 0; k < per; k++) {
+            const a = (k / per) * Math.PI * 2;
+            const rr = mk.scale * (mk.kind === "emblem" ? 4 : 2);
+            prepared.push([ex + Math.cos(a) * rr, ez + Math.sin(a) * rr,
+              mk.scale, mk.index, rng, 2]);
+          }
+        }
+      }
+    }
+
+    const glyphs = new Float32Array(prepared.length);
+    const offs = new Float32Array(prepared.length);
+    for (let i = 0; i < prepared.length; i++) { glyphs[i] = Math.floor(rng() * 128); offs[i] = rng(); }
+
+    const plane = points(prepared.length, atlasTexture, uniforms, (i, out) => {
+      const [x, z, scale, kindIdx] = prepared[i];
       const r = Math.hypot(x - cx, z - cz);
       out[0] = x; out[1] = floorY; out[2] = z;
       out[3] = glyphs[i];
-      out[4] = 3.5;
+      out[4] = scale;
       out[5] = offs[i];
       out[6] = Math.exp(-r / (half * 0.5));
+      out[7] = kindIdx;
     });
     plane.userData.floorPart = "plane";
     plane.frustumCulled = false;
     group.add(plane);
+  }
+
+  // Сплошная непрозрачная поверхность: она закрывает всё, что ниже пола. Без неё
+  // зеркальные копии висят в открытом пространстве и читаются вторым миром снизу.
+  if (m !== "nosolid") {
+    const g = new THREE.BufferGeometry();
+    const hx = Math.max(1, bounds.size[0]) * 6 + 2000;
+    const hz = Math.max(1, bounds.size[2]) * 6 + 2000;
+    const ccx = (bounds.min[0] + bounds.max[0]) / 2;
+    const ccz = (bounds.min[2] + bounds.max[2]) / 2;
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([
+      ccx - hx, floorY, ccz - hz,
+      ccx + hx, floorY, ccz - hz,
+      ccx + hx, floorY, ccz + hz,
+      ccx - hx, floorY, ccz + hz,
+    ]), 3));
+    if (g.setIndex) g.setIndex([0, 2, 1, 0, 3, 2]);
+    const solid = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0x000000), transparent: false, depthWrite: true,
+    }));
+    solid.userData.floorPart = "solid";
+    solid.frustumCulled = false;
+    group.add(solid);
   }
 
   group.userData = { floorY, seed: seedCode };

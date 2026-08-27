@@ -17,6 +17,63 @@
 // атрибута в шейдере он читает, а доходит ли fade до пикселя — решается глазами
 // на демо-точке D2. Врать об этом гейту нельзя.
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+
+// ── самопроверка гейта ────────────────────────────────────────────────────────
+// Эталон обязан пройти, каждая порча — упасть, и новые порчи обязаны падать ПО СВОЕЙ
+// причине. Без сверки причины слепота гейта прячется за посторонней ошибкой: порча
+// «разметка россыпью» проходила насквозь, потому что проверка смотрела пол открытого
+// пространства, где разметки нет вовсе, а порча «один род» падала на проверке сетки.
+if (process.argv.includes('--self')) {
+  const FIX = 'tools/fixture-floor.js';
+  const withReason = [
+    ['onekind', 'один род рисунка на полу', 'родов рисунка'],
+    ['onescale', 'один масштаб на весь пол', 'масштабов'],
+    ['dots', 'разметка рассыпана точками', 'разметка рассыпана'],
+    ['sameloc', 'рисунок не зависит от локации', 'одинаков в городе'],
+    ['nosolid', 'у пола нет сплошной поверхности', 'сплошной поверхности'],
+  ];
+  // Порчи отражения заведены вместе с гейтом раньше; здесь сверяется только падение.
+  const failOnly = ['copy', 'flat', 'nofade', 'stepfade', 'shrink', 'dimsize',
+    'samephase', 'random', 'fixedplane', 'noplane', 'noshader'];
+
+  const run1 = (mut) => {
+    try {
+      const out = execFileSync(process.execPath,
+        ['tools/floor-check.mjs', '--mod', FIX, ...(mut ? ['--mutate', mut] : [])],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      return { ok: true, out };
+    } catch (e) {
+      return { ok: false, out: (e.stdout || '') + (e.stderr || '') };
+    }
+  };
+
+  console.log('#'.repeat(78));
+  console.log('САМОПРОВЕРКА ГЕЙТА: floor-check — пол, отражение и рисунок');
+  console.log('#'.repeat(78));
+  let bad2 = 0;
+  const base = run1('');
+  console.log(base.ok ? '  эталон прошёл' : '  !! ЭТАЛОН НЕ ПРОШЁЛ');
+  if (!base.ok) { bad2++; for (const l of base.out.split(String.fromCharCode(10))) { if (l.startsWith('  x')) console.log(l); } }
+  for (const [m, what, because] of withReason) {
+    const r = run1(m);
+    if (r.ok) { console.log('  !! ГЕЙТ СЛЕП на "' + m + '" (' + what + ')'); bad2++; continue; }
+    if (!r.out.includes(because)) {
+      console.log('  !! "' + m + '" упала НЕ ПО ТОЙ ПРИЧИНЕ: ждали "' + because + '"');
+      bad2++;
+    } else console.log('  "' + m + '" поймана по своей причине');
+  }
+  for (const m of failOnly) {
+    const r = run1(m);
+    if (r.ok) { console.log('  !! ГЕЙТ СЛЕП на "' + m + '"'); bad2++; }
+  }
+  console.log('#'.repeat(78));
+  if (bad2) { console.log('САМОПРОВЕРКА ПРОВАЛЕНА: ' + bad2 + ' — гейту верить нельзя'); process.exit(1); }
+  console.log('САМОПРОВЕРКА ПРОЙДЕНА: эталон проходит, все '
+    + (withReason.length + failOnly.length) + ' порч ловятся');
+  process.exit(0);
+}
+
 import os from 'node:os';
 import path from 'node:path';
 import { register } from 'node:module';
@@ -47,6 +104,14 @@ const SIZE_TINY_MAX = 0.10;          // доля точек отражения �
 const PHASE_DIFF_MIN = 0.02;         // средний сдвиг фазы пульсации
 const PLANE_BAND = 0.02;             // толщина плоскости пола в долях высоты мира
 const PLANE_GRID = [8, 160];         // различных значений x в сетке пола
+const FLOOR_KINDS_MIN = 3;           // родов рисунка на полу (N68)
+const FLOOR_SCALES_MIN = 3;          // разных масштабов на полу
+const FLOOR_SCALE_SPREAD = 8;        // во сколько раз крупнейший знак больше мельчайшего
+// Порог линейности разметки стоит МЕЖДУ линиями и россыпью, а не на идеале. Разметка
+// на полу — несколько параллельных дуг, и разброс поперёк у их объединения законно
+// заметный: замер на эталоне 0.87, на россыпи 0.53. Порог на 0.90 валил бы честную
+// реализацию — это был бы флак, а не гейт.
+const MARKING_LINE_MIN = 0.78;       // доля разброса разметки по главной оси
 const PLANE_STEP_CV = 0.15;          // неровность шага сетки
 const PLANE_SPAN_RESP = [1.6, 2.4];  // мир вдвое шире — пол обязан стать вдвое шире
 const GLYPH_DISTINCT_MIN = 8;
@@ -325,6 +390,16 @@ const catPos = (list) => {
   }
   return out;
 };
+// Собрать один атрибут со всех частей подряд — тем же порядком, что и catPos.
+const catOf = (list, name) => {
+  const out = [];
+  for (const p of list) {
+    const at = p.geometry.attributes[name];
+    if (!at) continue;
+    for (let i = 0; i < at.array.length; i++) out.push(at.array[i]);
+  }
+  return out;
+};
 const mean = (a) => a.reduce((s, v) => s + v, 0) / (a.length || 1);
 const std = (a) => { const m = mean(a); return Math.sqrt(mean(a.map(v => (v - m) * (v - m)))); };
 const distinct = (a) => new Set(a.map(v => Math.round(v * 1000) / 1000)).size;
@@ -458,16 +533,38 @@ if (parts.plane.length) {
       + '% высоты мира вокруг линии пола — это уже не пол');
   }
 
-  const xs = [...new Set(pos.map(p => Math.round(p[0] * 100) / 100))].sort((a, b) => a - b);
-  const steps = xs.slice(1).map((v, i) => v - xs[i]);
-  const cv = steps.length ? std(steps) / (mean(steps) || 1) : 1;
-  console.log('плоскость: различных x ' + xs.length + ', неровность шага ' + cv.toFixed(4));
-  if (xs.length < PLANE_GRID[0] || xs.length > PLANE_GRID[1]) {
+  // Ровность шага требуется от РЕШЁТКИ, а не от всего рисунка пола. Правило писалось,
+  // когда пол был только сеткой глифов; после N68 на нём ещё эмблемы, узор и длинные
+  // дуги разметки, и требовать от них решётчатого шага — мерить не то. Если у точек
+  // есть атрибут kind, берём только решётчатые роды; если нет — всё как раньше.
+  const kindArr = parts.plane[0] && parts.plane[0].geometry.attributes.kind
+    ? catOf(parts.plane, 'kind') : null;
+  const latticeIdx = [];
+  if (kindArr && Array.isArray(mod.FLOOR_MARK_KINDS)) {
+    for (const nm of ['lattice', 'pattern']) {
+      const i = mod.FLOOR_MARK_KINDS.indexOf(nm);
+      if (i >= 0) latticeIdx.push(i);
+    }
+  }
+  const gridPos = kindArr && latticeIdx.length
+    ? pos.filter((p, i) => latticeIdx.includes(kindArr[i]))
+    : pos;
+  // Если родов на полу несколько, а решётчатых среди них нет — ровность шага проверять
+  // не на чем, и требовать её значит мерить не то. Пока проверка стояла безусловно,
+  // порча «один род рисунка» падала на ней вместо своей причины.
+  const skipGrid = kindArr && latticeIdx.length > 0 && gridPos.length === 0;
+  const xs = skipGrid ? null
+    : [...new Set(gridPos.map(p => Math.round(p[0] * 100) / 100))].sort((a, b) => a - b);
+  if (skipGrid) console.log('плоскость: решётчатых родов на полу нет, ровность шага не проверяется');
+  const steps = xs ? xs.slice(1).map((v, i) => v - xs[i]) : [];
+  const cv = steps.length ? std(steps) / (mean(steps) || 1) : 0;
+  if (xs) console.log('плоскость: различных x ' + xs.length + ', неровность шага ' + cv.toFixed(4));
+  if (xs && (xs.length < PLANE_GRID[0] || xs.length > PLANE_GRID[1])) {
     bad('плоскость пола: различных значений x ' + xs.length + ' (нужно ' + PLANE_GRID.join('..')
       + ') — просили сетку глифов, а это '
       + (xs.length > PLANE_GRID[1] ? 'случайная россыпь' : 'вырождение'));
   }
-  if (cv > PLANE_STEP_CV) {
+  if (xs && cv > PLANE_STEP_CV) {
     bad('плоскость пола: шаг сетки неровный (разброс ' + cv.toFixed(3) + ' > ' + PLANE_STEP_CV
       + ') — сетка читается сеткой только при ровном шаге');
   }
@@ -484,6 +581,99 @@ if (parts.plane.length) {
       + GLYPH_DISTINCT_MIN + ') — это сетка одного символа, не глифов');
   }
   if (!(minOf(sz) > 0)) bad('плоскость пола: есть точки размера 0 — их не видно');
+
+  // ---- рисунок пола (задача N68) --------------------------------------------
+  // Пол на референсе не пустое зеркало: по нему рассыпаны крупные знаки, идут длинные
+  // дуги разметки, в зале лежит шахматная клетка. Проверки включаются, когда у точек
+  // появился атрибут kind; как только в проекте есть src/world/marks.js, атрибут
+  // становится обязательным — иначе пол молча останется сеткой одного размера.
+  if (!kindArr && fs.existsSync('src/world/marks.js')) {
+    bad('у точек плоскости пола нет атрибута kind: словарь знаков в проекте уже есть '
+      + '(src/world/marks.js), а пол по-прежнему одна сетка. Референс требует на полу '
+      + 'крупные знаки, разметку и узор');
+  }
+  if (kindArr) {
+    const kinds = [...new Set(kindArr)];
+    const sizes = catOf(parts.plane, 'size');
+    const uniqSizes = [...new Set(sizes.map(v => Math.round(v * 100) / 100))];
+    const mx = Math.max(...uniqSizes), mn = Math.min(...uniqSizes.filter(v => v > 0));
+    console.log('рисунок пола: родов ' + kinds.length + ', масштабов ' + uniqSizes.length
+      + ', разброс ' + (mx / mn).toFixed(1) + 'x');
+    if (kinds.length < FLOOR_KINDS_MIN) {
+      bad('на полу всего ' + kinds.length + ' родов рисунка, нужно от ' + FLOOR_KINDS_MIN
+        + ' — одна россыпь знаков это не «пол, покрытый символами»');
+    }
+    if (uniqSizes.length < FLOOR_SCALES_MIN) {
+      bad('на полу всего ' + uniqSizes.length + ' масштабов, нужно от ' + FLOOR_SCALES_MIN
+        + ' — один размер на весь пол это обои');
+    } else if (mx / mn < FLOOR_SCALE_SPREAD) {
+      bad('разброс масштабов на полу ' + (mx / mn).toFixed(1) + 'x, нужно от '
+        + FLOOR_SCALE_SPREAD + 'x: крупные знаки обязаны быть заметно крупнее мелкой россыпи');
+    }
+
+    // Разметка — связные ЛИНИИ, а не россыпь: за то она на референсе и отвечает,
+    // что уводит взгляд вдоль улицы.
+    // Смотрим пол ГОРОДА: разметка живёт вдоль улицы, и в открытом пространстве её
+    // нет вовсе. Пока проверка шла по полу по умолчанию, порча «разметка россыпью»
+    // проходила гейт насквозь — самопроверка это показала.
+    const markIdx = Array.isArray(mod.FLOOR_MARK_KINDS) ? mod.FLOOR_MARK_KINDS.indexOf('marking') : -1;
+    let cityPos = [], cityKind = [];
+    if (markIdx >= 0) {
+      try {
+        const cf = mod.buildFloor(SEED, makeWorld(1, 'A'), { location: 'city' });
+        const cp = [];
+        cf.group.traverse(o => { if (o.isPoints && o.userData.floorPart === 'plane') cp.push(o); });
+        cityPos = catPos(cp);
+        cityKind = catOf(cp, 'kind');
+      } catch (e) { bad('пол города не строится: ' + e.message); }
+    }
+    if (markIdx >= 0 && cityKind.includes(markIdx)) {
+      const mp = cityPos.filter((p, i) => cityKind[i] === markIdx);
+      if (mp.length > 20) {
+        const mxs = mp.map(p => p[0]), mzs = mp.map(p => p[2]);
+        const mux = mean(mxs), muz = mean(mzs);
+        let sxx = 0, szz = 0, sxz = 0;
+        for (let i = 0; i < mp.length; i++) {
+          const dx = mxs[i] - mux, dz = mzs[i] - muz;
+          sxx += dx * dx; szz += dz * dz; sxz += dx * dz;
+        }
+        sxx /= mp.length; szz /= mp.length; sxz /= mp.length;
+        const tr = sxx + szz;
+        const disc = Math.max(0, tr * tr / 4 - (sxx * szz - sxz * sxz));
+        const ratio = tr > 0 ? (tr / 2 + Math.sqrt(disc)) / tr : 0;
+        console.log('разметка: доля разброса по главной оси ' + ratio.toFixed(3)
+          + ' (нужно ' + MARKING_LINE_MIN + ')');
+        if (ratio < MARKING_LINE_MIN) {
+          bad('разметка рассыпана точками, а не идёт линиями: по главной оси всего '
+            + (ratio * 100).toFixed(0) + '% разброса при пороге ' + (MARKING_LINE_MIN * 100)
+            + '%. Разметка на референсе уводит взгляд вдоль улицы, россыпь так не умеет');
+        }
+      }
+    }
+
+    // Род рисунка меняется вместе с локацией: в городе разметка, в зале узор.
+    try {
+      const inCity = mod.buildFloor(SEED, makeWorld(1, 'A'), { location: 'city' });
+      const inHall = mod.buildFloor(SEED, makeWorld(1, 'A'), { location: 'hall' });
+      const kindsOf = (f) => {
+        const out = new Set();
+        f.group.traverse(o => {
+          if (o.isPoints && o.userData.floorPart === 'plane' && o.geometry.attributes.kind) {
+            for (const v of o.geometry.attributes.kind.array) out.add(v);
+          }
+        });
+        return [...out].sort().join(',');
+      };
+      const a = kindsOf(inCity), b = kindsOf(inHall);
+      console.log('рисунок по локациям: город [' + a + '], зал [' + b + ']');
+      if (a === b) {
+        bad('рисунок пола одинаков в городе и в зале — род рисунка обязан зависеть от '
+          + 'локации: вдоль улицы разметка, в зале шахматная клетка');
+      }
+    } catch (e) {
+      bad('проверка рисунка по локациям упала: ' + e.message);
+    }
+  }
 
   // отклик на габарит мира: вдвое шире мир — вдвое шире пол
   const wide = makeWorld(2, 'A');
