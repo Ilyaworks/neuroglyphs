@@ -162,6 +162,12 @@ function healthCheck() {
   if (fs.existsSync('src/render/floor.js')) {
     checks.push(['отражающий пол', 'node tools/floor-check.mjs']);
   }
+  if (fs.existsSync('src/world/zones.js')) {
+    checks.push(['зоны мира', 'node tools/zones-check.mjs']);
+  }
+  if (fs.existsSync('src/player/collide.js')) {
+    checks.push(['осязаемость', 'node tools/collide-check.mjs']);
+  }
   if (fs.existsSync('src/world/surface.js')) {
     checks.push(['поверхности', 'node tools/surface-check.mjs']);
   }
