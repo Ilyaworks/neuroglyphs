@@ -5,7 +5,10 @@ import { buildGlyphAtlas } from "../core/atlas.js";
 import { buildFieldGeometry } from "./fieldGeometry.js";
 import { buildFieldMaterial } from "./fieldMaterial.js";
 import { buildShapeField } from "./shapeField.js";
+import { buildSurfaceField } from "./surfaceField.js";
 import { LAYOUTS } from "./layouts/index.js";
+import { layoutSurfaces, layoutForms } from "./surfacePlan.js";
+import { buildLanguage } from "./language.js";
 import { buildExitPortal } from "./portal.js";
 import { buildImpossible, IMPOSSIBLE_KINDS } from "../atmosphere/impossible.js";
 import { resolvePalette } from "../art/palettes.js";
@@ -154,7 +157,120 @@ export function createWorld(seedCode) {
   });
   group.add(portal.group);
 
+  // Поверхности: стены, стволы колонн, пол и сферы, покрытые знаками. Признак 27
+  // референса — символы ЛЕЖАТ НА ПОВЕРХНОСТЯХ; без них мир читается облаком, а не
+  // постройкой. Свой поток случайности, как у дальнего плана: иначе поверхности
+  // зависят от того, сколько чисел израсходовала раскладка.
+  //
+  // Габарит для расстановки берём НЕ по коробке мира: её растягивают одиночные
+  // далёкие объекты, и стены уезжали бы за горизонт. Считаем по процентилям —
+  // тем же способом, каким чинили линию пола.
+  // Язык мира: одна стилистика на весь город. Свой поток случайности, как у дальнего
+  // плана, — иначе язык зависит от того, сколько чисел израсходовала раскладка.
+  const language = buildLanguage(code);
+  const surfRng = mulberry32(strToSeed(code + ":surfaces"));
+  const surfaces = [];
+  if (count > 8) {
+    const cut = (axis, q) => {
+      const vals = new Float64Array(count);
+      for (let i = 0; i < count; i++) vals[i] = points[i * 3 + axis];
+      vals.sort();
+      return vals[Math.min(count - 1, Math.max(0, Math.floor(q * (count - 1))))];
+    };
+    // Точка старта игрока считается ровно так же, как в boot.js: по ГАБАРИТУ мира.
+    // Габарит и процентили расходятся тем сильнее, чем дальше одиночные объекты, и
+    // на таких сидах камера оказывалась за пределами процентильной коробки — стены
+    // вставали у неё за спиной. План поверхностей обязан знать, где стоит игрок.
+    const box = {
+      x0: cut(0, 0.03), x1: cut(0, 0.97),
+      y0: cut(1, 0.02), y1: cut(1, 0.98),
+      z0: cut(2, 0.03), z1: cut(2, 0.97),
+      camX: (bounds.min[0] + bounds.max[0]) / 2,
+      camZ: (bounds.min[2] + bounds.max[2]) / 2 + bounds.size[2] * 0.30,
+    };
+    for (const item of layoutSurfaces(structure, surfRng, box)) {
+      const built = buildSurfaceField(code + ":" + item.role + ":" + surfaces.length, item.spec, atlas, {
+        marks: item.marks,
+        language,
+        fogDensity,
+        spectrum: palette.glyph,
+        salt: item.role + surfaces.length,
+      });
+      built.uniforms.uPulse = uniforms.uPulse;
+      built.uniforms.uTime = uniforms.uTime;
+      built.points.userData.surfaceRole = item.role;
+      group.add(built.points);
+      surfaces.push(built);
+    }
+
+    // Постройки на языке мира: арки, шпили, купола — те формы, что выбрал сид, в своих
+    // вариациях. Собраны В ОДНО облако: каждое отдельное облако обязано быть видно на
+    // экране (это стережёт world-check), а полтора десятка мелких построек по одному
+    // облаку на штуку такую проверку не переживут и правильно сделают.
+    const formPlan = layoutForms(surfRng, box, language);
+    if (formPlan.length) {
+      const parts = [];
+      let total = 0;
+      for (const item of formPlan) {
+        const v = language.variantOf(item.form, surfRng);
+        const pts = new Float32Array(v.count * 3);
+        const out = [0, 0, 0];
+        let lo = Infinity;
+        for (let i = 0; i < v.count; i++) {
+          v.fill(i, out);
+          pts[i * 3] = out[0] * item.grow;
+          pts[i * 3 + 1] = out[1] * item.grow;
+          pts[i * 3 + 2] = out[2] * item.grow;
+          if (pts[i * 3 + 1] < lo) lo = pts[i * 3 + 1];
+        }
+        // Постройка СТОИТ НА ПОЛУ, а не висит и не тонет: поднимаем на её же низ.
+        for (let i = 0; i < v.count; i++) {
+          pts[i * 3] += item.at[0];
+          pts[i * 3 + 1] += item.at[1] - lo;
+          pts[i * 3 + 2] += item.at[2];
+        }
+        parts.push({ pts, n: v.count, form: item.form, grow: item.grow });
+        total += v.count;
+      }
+      const fPos = new Float32Array(total * 3);
+      const fGlyph = new Float32Array(total);
+      const fSize = new Float32Array(total);
+      const fOff = new Float32Array(total);
+      const alpha = language.glyphs;
+      let w2 = 0;
+      for (let pi = 0; pi < parts.length; pi++) {
+        const part = parts[pi];
+        for (let i = 0; i < part.n; i++) {
+          fPos[w2 * 3] = part.pts[i * 3];
+          fPos[w2 * 3 + 1] = part.pts[i * 3 + 1];
+          fPos[w2 * 3 + 2] = part.pts[i * 3 + 2];
+          fGlyph[w2] = alpha[(w2 * 7 + pi) % alpha.length];
+          fSize[w2] = 2 + part.grow * 2.5;
+          fOff[w2] = ((pi % 4) + 0.5) / 4;
+          w2++;
+        }
+      }
+      const fGeo = new THREE.BufferGeometry();
+      fGeo.setAttribute("position", new THREE.BufferAttribute(fPos, 3));
+      fGeo.setAttribute("glyph", new THREE.BufferAttribute(fGlyph, 1));
+      fGeo.setAttribute("size", new THREE.BufferAttribute(fSize, 1));
+      fGeo.setAttribute("offset", new THREE.BufferAttribute(fOff, 1));
+      fGeo.computeBoundingSphere();
+      const { material: fMat, uniforms: fUni } = buildFieldMaterial(atlas, { fogDensity });
+      fMat.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
+      fUni.uPulse = uniforms.uPulse;
+      fUni.uTime = uniforms.uTime;
+      const fPoints = new THREE.Points(fGeo, fMat);
+      fPoints.frustumCulled = false;
+      fPoints.userData.cityForms = formPlan.map((f) => f.form);
+      group.add(fPoints);
+      surfaces.push({ points: fPoints, geometry: fGeo, material: fMat, uniforms: fUni });
+    }
+  }
+
   group.userData = { seed: code, structure, bounds, exitPosition: portal.group.position, palette, fogDensity };
+  group.userData.language = { manner: language.manner, alphabet: language.alphabet, forms: language.forms };
+  group.userData.surfaces = surfaces.map((s) => s.points.userData.surface);
   group.userData.impossible = {
     kind: imp.kind,
     anchor: impAnchor,
@@ -194,6 +310,7 @@ export function createWorld(seedCode) {
           o.material.dispose();
         }
       });
+      for (const s of surfaces) { s.geometry.dispose(); s.material.dispose(); }
     },
   };
 }
