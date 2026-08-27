@@ -162,6 +162,9 @@ function healthCheck() {
   if (fs.existsSync('src/render/floor.js')) {
     checks.push(['отражающий пол', 'node tools/floor-check.mjs']);
   }
+  if (fs.existsSync('src/world/surface.js')) {
+    checks.push(['поверхности', 'node tools/surface-check.mjs']);
+  }
   if (fs.existsSync('src/world/textField.js')) {
     checks.push(['поле надписей', 'node tools/textfield-check.mjs']);
   }
