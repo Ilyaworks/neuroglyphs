@@ -59,6 +59,15 @@ export { MOODS };
 
 export const PALETTES = Object.keys(MOODS);
 
+// Палитра по имени: срез по кадру референса просит монохром, а не то, что выпало сиду.
+// Кадр, который выбрал человек, — белое на чёрном, вся глубина яркостью.
+export function paletteByName(name) {
+  const base = MOODS[name];
+  if (!base) return null;
+  return { bg: base.bg, fog: base.fog, fogDensity: base.fogDensity,
+    glyph: base.glyph.slice(), rim: base.rim, accent: base.accent, pulse: base.pulse, mood: name };
+}
+
 export function resolvePalette(seed) {
   const mood = seed.mood % PALETTES.length;
   const base = MOODS[PALETTES[mood]];

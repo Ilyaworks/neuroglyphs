@@ -30,13 +30,18 @@ function footprintOf(variant, samples = 200) {
       if (out[k] > max[k]) max[k] = out[k];
     }
   }
-  return [Math.max(1, max[0] - min[0]), Math.max(1, max[1] - min[1]), Math.max(1, max[2] - min[2])];
+  return {
+    size: [Math.max(1, max[0] - min[0]), Math.max(1, max[1] - min[1]), Math.max(1, max[2] - min[2])],
+    lo: min,
+  };
 }
 
-function placePoint(local, place, origin, out) {
+// lift — насколько поднять элемент, чтобы он СТОЯЛ НА ПОЛУ. У кольца, ромба и купола
+// начало координат в середине, и без подъёма половина постройки уходит под пол.
+function placePoint(local, place, origin, out, lift) {
   const st = place.stretch || [1, 1, 1];
   const x = local[0] * st[0] * place.scale;
-  const y = local[1] * st[1] * place.scale;
+  const y = (local[1] - (lift || 0)) * st[1] * place.scale;
   const z = local[2] * st[2] * place.scale;
   const t = place.turn || 0;
   const c = Math.cos(t), s = Math.sin(t);
@@ -82,13 +87,14 @@ export function buildCityField(city, language, atlas, opts = {}) {
     if (area.kind === "hall") continue;   // зал строится своим модулем
     const form = language.forms[Math.floor(rng() * language.forms.length)];
     const variant = language.variantOf(form, mulberry32(strToSeed(seed + ":area" + area.id)));
-    const foot = footprintOf(variant);
+    const fp = footprintOf(variant);
+    const foot = fp.size;
     // Постройка соразмерна участку: элемент подгоняется под клетку, а не наоборот.
     const want = area.size[0] * 0.16;
     const scale = want / foot[0];
     const built = assemble(area.rule, { footprint: [foot[0] * scale, foot[1] * scale, foot[2] * scale] },
       seed + ":" + area.id, { count: 4 + Math.floor(rng() * 4) });
-    bodies.push({ area, variant, scale, places: built.places });
+    bodies.push({ area, variant, scale, places: built.places, lift: fp.lo[1] });
     total += variant.count * built.places.length;
   }
 
@@ -106,7 +112,7 @@ export function buildCityField(city, language, atlas, opts = {}) {
         const p = { ...place, scale: place.scale * b.scale };
         for (let i = 0; i < b.variant.count; i++) {
           b.variant.fill(i, local);
-          placePoint(local, p, origin, world);
+          placePoint(local, p, origin, world, b.lift);
           pos[w * 3] = world[0]; pos[w * 3 + 1] = world[1]; pos[w * 3 + 2] = world[2];
           gl[w] = glyphs[(w * 7 + bi) % glyphs.length];
           sz[w] = 2.2;
@@ -162,6 +168,33 @@ export function buildCityField(city, language, atlas, opts = {}) {
     }
   }
 
+  // ── тела для столкновений ───────────────────────────────────────────────────
+  // Стена — тонкая коробка по своей длине, постройка — коробка по своему габариту.
+  // Их и получит collide.js: сквозь них пройти нельзя.
+  const solids = [];
+  const WALL_T = 10;
+  for (const item of surfaces) {
+    if (!item.role.startsWith("wall:")) continue;
+    const sp = item.spec;
+    const ex = sp.origin[0] + sp.u[0] * sp.w, ez = sp.origin[2] + sp.u[2] * sp.w;
+    solids.push({
+      min: [Math.min(sp.origin[0], ex) - WALL_T, sp.origin[1], Math.min(sp.origin[2], ez) - WALL_T],
+      max: [Math.max(sp.origin[0], ex) + WALL_T, sp.origin[1] + sp.h, Math.max(sp.origin[2], ez) + WALL_T],
+    });
+  }
+  for (const b of bodies) {
+    for (const place of b.places) {
+      const sc = place.scale * b.scale;
+      const hw = b.variant ? 0 : 0;
+      const fw = footprintOf(b.variant).size;
+      const hx = fw[0] * sc * 0.5, hz = fw[2] * sc * 0.5, hy = fw[1] * sc;
+      solids.push({
+        min: [b.area.center[0] + place.at[0] - hx, b.area.floorY, b.area.center[2] + place.at[2] - hz],
+        max: [b.area.center[0] + place.at[0] + hx, b.area.floorY + hy, b.area.center[2] + place.at[2] + hz],
+      });
+    }
+  }
+
   for (let i = 0; i < surfaces.length; i++) {
     const item = surfaces[i];
     const built = buildSurfaceField(seed + ":" + item.role, item.spec, atlas, {
@@ -199,6 +232,8 @@ export function buildCityField(city, language, atlas, opts = {}) {
     hallAt: hallArea ? [hallArea.center[0], city.floorY, hallArea.center[2]] : null,
     areas: city.areas.map((a) => a.kind),
     bounds: city.bounds,
+    floorY: city.floorY,
+    solids,
   };
 
   return {

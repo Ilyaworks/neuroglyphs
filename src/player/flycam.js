@@ -13,9 +13,21 @@ const KEY_CODES = new Set([
   "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight",
 ]);
 
+// Ходьба и осязаемость. Раньше камера летала свободно и проходила сквозь всё: мир
+// от этого читается макетом, а не местом. Ограничитель приходит снаружи — полёту он
+// не нужен, а городу нужен, и знать про город камере незачем.
+const EYE_HEIGHT = 9;
+const GRAVITY = 260;
+const JUMP = 95;
+
 export function createFlyCam(camera, dom) {
   const keys = new Set();
   let speed = BASE_SPEED;
+  let constrain = null;     // (from, to, out) — куда игрок попадёт на самом деле
+  let walking = false;      // ходьба: тяга вниз, вверх только прыжком
+  let groundAt = null;      // высота пола под точкой
+  let onGround = false;
+  const from = [0, 0, 0], to = [0, 0, 0], solved = [0, 0, 0];
   let velX = 0;
   let velY = 0;
   let velZ = 0;
@@ -92,7 +104,8 @@ export function createFlyCam(camera, dom) {
 
     const forward = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
     const rightKey = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
-    const up = (keys.has("Space") ? 1 : 0) - (keys.has("KeyC") ? 1 : 0);
+    // В ходьбе вертикаль клавишами не управляется: вверх — только прыжком.
+    const up = walking ? 0 : (keys.has("Space") ? 1 : 0) - (keys.has("KeyC") ? 1 : 0);
 
     camera.updateMatrixWorld();
     camera.getWorldDirection(dir);
@@ -114,9 +127,45 @@ export function createFlyCam(camera, dom) {
     velY += (ty * target - velY) * k;
     velZ += (tz * target - velZ) * k;
 
-    camera.position.x += velX * dt;
-    camera.position.y += velY * dt;
-    camera.position.z += velZ * dt;
+    if (walking) {
+      // Тяга вниз и прыжок. Горизонталь считается как обычно, вертикаль — своя.
+      velY -= GRAVITY * dt;
+      if (onGround && keys.has("Space")) { velY = JUMP; onGround = false; }
+    }
+
+    from[0] = camera.position.x; from[1] = camera.position.y; from[2] = camera.position.z;
+    to[0] = from[0] + velX * dt;
+    to[1] = from[1] + velY * dt;
+    to[2] = from[2] + velZ * dt;
+
+    if (constrain) {
+      constrain(from, to, solved);
+      // Упёрлись — гасим скорость по той оси, иначе игрок липнет к стене и потом
+      // отскакивает, когда её отпустит.
+      if (solved[0] === from[0] && to[0] !== from[0]) velX = 0;
+      if (solved[2] === from[2] && to[2] !== from[2]) velZ = 0;
+      to[0] = solved[0]; to[1] = solved[1]; to[2] = solved[2];
+    }
+
+    if (walking && groundAt) {
+      const floor = groundAt(to[0], to[2]);
+      if (to[1] <= floor + EYE_HEIGHT) {
+        to[1] = floor + EYE_HEIGHT;
+        if (velY < 0) velY = 0;
+        onGround = true;
+      } else {
+        onGround = false;
+      }
+    }
+
+    camera.position.set(to[0], to[1], to[2]);
+  }
+
+  function setConstraint(fn) { constrain = typeof fn === "function" ? fn : null; }
+  function setWalk(on, ground) {
+    walking = !!on;
+    groundAt = typeof ground === "function" ? ground : null;
+    if (walking) velY = 0;
   }
 
   function dispose() {
@@ -132,5 +181,5 @@ export function createFlyCam(camera, dom) {
     window.removeEventListener("pointermove", onMouseMove);
   }
 
-  return { update, setSpeed, syncFromCamera, dispose };
+  return { update, setSpeed, syncFromCamera, setConstraint, setWalk, dispose };
 }

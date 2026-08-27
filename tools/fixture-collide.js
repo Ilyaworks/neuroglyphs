@@ -20,9 +20,15 @@ export function buildCollider(seedCode, opts = {}) {
   const floorY = opts.floorY !== undefined ? opts.floorY : -40;
   const boxes = [];
 
-  // Две стены, сходящиеся углом: на них проверяется и упор, и скольжение, и выход из угла.
-  boxes.push({ min: [40, floorY, -400], max: [90, floorY + 300, 40] });   // стена вдоль Z
-  boxes.push({ min: [-400, floorY, 40], max: [90, floorY + 300, 90] });   // стена вдоль X
+  // Тела приходят СНАРУЖИ, если их дали: город знает свои стены лучше, чем модуль
+  // столкновений. Своя расстановка остаётся на случай, когда города ещё нет.
+  if (Array.isArray(opts.solids) && opts.solids.length) {
+    for (const b of opts.solids) boxes.push(b);
+  } else {
+    // Две стены, сходящиеся углом: на них проверяется упор, скольжение и выход из угла.
+    boxes.push({ min: [40, floorY, -400], max: [90, floorY + 300, 40] });
+    boxes.push({ min: [-400, floorY, 40], max: [90, floorY + 300, 90] });
+  }
 
   // Ещё несколько тел от сида — здания вокруг.
   const n = 4 + Math.floor(rng() * 4);

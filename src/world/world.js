@@ -15,7 +15,7 @@ import { buildCity } from "./city.js";
 import { buildCityField } from "./cityField.js";
 import { buildExitPortal } from "./portal.js";
 import { buildImpossible, IMPOSSIBLE_KINDS } from "../atmosphere/impossible.js";
-import { resolvePalette } from "../art/palettes.js";
+import { resolvePalette, paletteByName } from "../art/palettes.js";
 
 const FIELD_RADIUS = 400;
 const STAR_RADIUS = 2200;
@@ -78,7 +78,14 @@ export function createWorld(seedCode) {
     out[2] = points[i * 3 + 2];
   });
 
-  const palette = resolvePalette(fields);
+  let palette = resolvePalette(fields);
+  // В срезе цвет не отдаётся на волю сида: кадр, выбранный человеком, монохромный.
+  // Ключ ?mood=<имя> даёт посмотреть любую другую гамму: serene, eerie, joyful,
+  // uncanny, claustrophobic, void.
+  if (cityOnly || hallOnly) {
+    const want = (params && params.get("mood")) || "void";
+    palette = paletteByName(want) || palette;
+  }
   const fogDensity = Math.min(0.004, Math.max(0.0003, palette.fogDensity * (0.5 + fields.density / 15)));
   const { material, uniforms } = buildFieldMaterial(atlas, { fogDensity });
   material.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));

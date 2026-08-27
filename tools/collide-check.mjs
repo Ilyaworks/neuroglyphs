@@ -57,8 +57,17 @@ async function runOnce(modPath) {
   }
   if (typeof mod.buildCollider !== 'function') return ['нет buildCollider(seed, opts)'];
 
+  // Стены для проверки задаёт ГЕЙТ, а не модуль. Первая редакция строила коллайдер
+  // без опций и проверяла его на стенах, которые придумал эталон, — то есть требовала
+  // от продукта выдумать ровно те же. Проверка на заданной геометрии меряет столкновения,
+  // а не совпадение фантазий.
+  const TEST_FLOOR = -40;
+  const TEST_SOLIDS = [
+    { min: [40, TEST_FLOOR, -400], max: [90, TEST_FLOOR + 300, 40] },
+    { min: [-400, TEST_FLOOR, 40], max: [90, TEST_FLOOR + 300, 90] },
+  ];
   let col;
-  try { col = mod.buildCollider('TEST-TEST-TEST', {}); }
+  try { col = mod.buildCollider('TEST-TEST-TEST', { floorY: TEST_FLOOR, solids: TEST_SOLIDS }); }
   catch (e) { return ['buildCollider упал: ' + e.message]; }
   if (typeof col.blocked !== 'function') bad('нет blocked(x, y, z)');
   if (typeof col.resolve !== 'function') bad('нет resolve(from, to, out)');

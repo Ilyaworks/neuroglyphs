@@ -7,6 +7,7 @@ import { buildFieldGeometry } from "./world/fieldGeometry.js";
 import { buildFieldMaterial } from "./world/fieldMaterial.js";
 import { buildFormulaPlane, FORMULAS } from "./world/textField.js";
 import { createFlyCam } from "./player/flycam.js";
+import { buildCollider } from "./player/collide.js";
 import { createFreeze } from "./player/freeze.js";
 
 const canvas = document.getElementById("scene");
@@ -80,6 +81,14 @@ world.ready.then(() => {
     const look = city.hallAt || city.portal;
     camera.lookAt(look[0], city.spawn[1] + 40, look[2]);
     textMesh.visible = false;
+    // Осязаемость и ходьба: сквозь стены не пройти, по полу ходят. Тела города знает
+    // сам город — камере про них знать незачем, она получает готовый ограничитель.
+    const col = buildCollider(seedCode, {
+      floorY: city.floorY, solids: city.solids, spawn: [city.spawn[0], city.floorY + 9, city.spawn[2]],
+    });
+    camera.position.set(col.spawn[0], col.spawn[1], col.spawn[2]);
+    flyCam.setConstraint((f, to, out) => col.resolve(f, to, out));
+    flyCam.setWalk(true, (x, z) => col.groundAt(x, z));
   } else if (hall) {
     // Срез по кадру референса: игрок стоит В ПРОЁМЕ зала, на оси, и смотрит вглубь —
     // за сферу. Именно с этой точки кадр и складывается тем, что на референсе.

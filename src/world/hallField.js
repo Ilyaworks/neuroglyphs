@@ -10,10 +10,12 @@ import { buildSurfaceField } from "./surfaceField.js";
 
 // Точка элемента в мире: своё растяжение, свой размер, свой разворот, своё место.
 // Порядок именно такой — растянуть, увеличить, повернуть, поставить.
-function placePoint(local, place, out) {
+// lift — насколько поднять элемент, чтобы он СТОЯЛ НА ПОЛУ. У кольца, ромба и купола
+// начало координат в середине, и без подъёма половина колонны уходит под пол.
+function placePoint(local, place, out, lift) {
   const st = place.stretch || [1, 1, 1];
   const x = local[0] * st[0] * place.scale;
-  const y = local[1] * st[1] * place.scale;
+  const y = (local[1] - (lift || 0)) * st[1] * place.scale;
   const z = local[2] * st[2] * place.scale;
   const t = place.turn || 0;
   const c = Math.cos(t), s = Math.sin(t);
@@ -23,7 +25,16 @@ function placePoint(local, place, out) {
   return out;
 }
 
+function lowestOf(variant, samples = 200) {
+  const out = [0, 0, 0];
+  let lo = Infinity;
+  const step = Math.max(1, Math.floor(variant.count / samples));
+  for (let i = 0; i < variant.count; i += step) { variant.fill(i, out); if (out[1] < lo) lo = out[1]; }
+  return Number.isFinite(lo) ? lo : 0;
+}
+
 function cloudOf(variant, places, glyphs, dot, rng) {
+  const lift = lowestOf(variant);
   const per = variant.count;
   const total = per * places.length;
   const pos = new Float32Array(total * 3);
@@ -36,7 +47,7 @@ function cloudOf(variant, places, glyphs, dot, rng) {
     const place = places[pi];
     for (let i = 0; i < per; i++) {
       variant.fill(i, local);
-      placePoint(local, place, world);
+      placePoint(local, place, world, lift);
       pos[w * 3] = world[0]; pos[w * 3 + 1] = world[1]; pos[w * 3 + 2] = world[2];
       gl[w] = glyphs[(w * 7 + pi) % glyphs.length];
       sz[w] = dot * place.scale;
