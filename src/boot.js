@@ -71,8 +71,16 @@ world.ready.then(() => {
 
   // Игрок стоит НА полу, а не висит посреди мира. Пол лежит под всеми отражаемыми
   // объектами, значит весь мир оказывается НАД игроком — и отражается.
+  const city = world.group.userData.city;
   const hall = world.group.userData.hall;
-  if (hall) {
+  if (city) {
+    // Игрок появляется на входном участке города и смотрит в сторону зала: к нему и
+    // идут, он предмет города.
+    camera.position.set(city.spawn[0], Math.max(city.spawn[1] + FLOOR_EYE, floorLine + FLOOR_EYE), city.spawn[2]);
+    const look = city.hallAt || city.portal;
+    camera.lookAt(look[0], city.spawn[1] + 40, look[2]);
+    textMesh.visible = false;
+  } else if (hall) {
     // Срез по кадру референса: игрок стоит В ПРОЁМЕ зала, на оси, и смотрит вглубь —
     // за сферу. Именно с этой точки кадр и складывается тем, что на референсе.
     camera.position.set(hall.eye[0], Math.max(hall.eye[1], floorLine + FLOOR_EYE), hall.eye[2]);

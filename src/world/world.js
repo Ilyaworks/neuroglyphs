@@ -11,6 +11,8 @@ import { layoutSurfaces, layoutForms } from "./surfacePlan.js";
 import { buildLanguage } from "./language.js";
 import { buildHall } from "./halls.js";
 import { buildHallField } from "./hallField.js";
+import { buildCity } from "./city.js";
+import { buildCityField } from "./cityField.js";
 import { buildExitPortal } from "./portal.js";
 import { buildImpossible, IMPOSSIBLE_KINDS } from "../atmosphere/impossible.js";
 import { resolvePalette } from "../art/palettes.js";
@@ -39,8 +41,10 @@ export function createWorld(seedCode) {
   // без формы из каталога, без невозможной фигуры. Отдельным входом, а не заменой мира:
   // так на срез можно смотреть уже сейчас, а гейты продолжают мерить прежний мир. Когда
   // город вокруг зала будет готов (N88), этот вход станет обычной дорогой.
-  const hallOnly = typeof location !== "undefined"
-    && new URLSearchParams(location.search).get("hall") === "1";
+  const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : null;
+  const hallOnly = params && params.get("hall") === "1";
+  // ?city=1 — весь город: постройки, лабиринт улиц, зал внутри как одно из мест.
+  const cityOnly = params && params.get("city") === "1";
 
   const budget = 1500 + fields.density * 2000;
   const density = Math.floor(budget * 0.6);
@@ -282,7 +286,21 @@ export function createWorld(seedCode) {
   // продолжают мерить прежние гейты. Удалять их можно будет, когда город вокруг зала
   // встанет на их место (N88).
   let hallBuilt = null;
-  if (hallOnly) {
+  let cityBuilt = null;
+  if (cityOnly) {
+    const city = buildCity(code, language, { floorY: 0 });
+    cityBuilt = buildCityField(city, language, atlas, {
+      seed: code, spectrum: palette.glyph, fogDensity,
+      uPulse: uniforms.uPulse, uTime: uniforms.uTime,
+    });
+    group.add(cityBuilt.group);
+    field.visible = false;
+    shapeField.visible = false;
+    impField.visible = false;
+    for (const s of surfaces) s.points.visible = false;
+    const info = cityBuilt.group.userData.city;
+    portal.group.position.set(info.portal[0], city.floorY + 60, info.portal[2]);
+  } else if (hallOnly) {
     const hall = buildHall(code, language, { floorY: 0 });
     hallBuilt = buildHallField(hall, language, atlas, {
       seed: code, spectrum: palette.glyph, fogDensity,
@@ -305,6 +323,7 @@ export function createWorld(seedCode) {
   // ПОСЛЕ общего присваивания userData: строка выше заменяет объект целиком, и ссылка
   // на зал, поставленная раньше, просто пропадала. Камера всё это время стояла по-старому.
   if (hallBuilt) group.userData.hall = hallBuilt.group.userData.hall;
+  if (cityBuilt) group.userData.city = cityBuilt.group.userData.city;
   group.userData.surfaces = surfaces.map((s) => s.points.userData.surface);
   group.userData.impossible = {
     kind: imp.kind,
@@ -347,6 +366,7 @@ export function createWorld(seedCode) {
       });
       for (const s of surfaces) { s.geometry.dispose(); s.material.dispose(); }
       if (hallBuilt) hallBuilt.dispose();
+      if (cityBuilt) cityBuilt.dispose();
     },
   };
 }
