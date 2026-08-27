@@ -13,6 +13,7 @@ import { buildSurfaceField } from "./surfaceField.js";
 import { assemble } from "./grammar.js";
 import { buildHall } from "./halls.js";
 import { buildHallField } from "./hallField.js";
+import { buildSolids } from "./solids.js";
 
 // Стена города обязана быть СПЛОШНОЙ: сквозь редкую россыпь знаков видно весь город
 // разом, и он читается макетом, а не местом. Сплошной её делает крупная плитка обоев —
@@ -90,6 +91,10 @@ export function buildCityField(city, language, atlas, opts = {}) {
   let total = 0;
   for (const area of city.areas) {
     if (area.kind === "hall") continue;   // зал строится своим модулем
+    // На участке ВХОДА построек нет. Постройка ставится в середину участка, а игрок
+    // появляется там же — он оказывался ВНУТРИ здания, и экран был сплошной заливкой.
+    // По кадрам референса человек и стоит на пустой площади.
+    const isPlaza = area.id === city.spawn;
     const form = language.forms[Math.floor(rng() * language.forms.length)];
     const variant = language.variantOf(form, mulberry32(strToSeed(seed + ":area" + area.id)));
     const fp = footprintOf(variant);
@@ -99,8 +104,10 @@ export function buildCityField(city, language, atlas, opts = {}) {
     const scale = want / foot[0];
     const built = assemble(area.rule, { footprint: [foot[0] * scale, foot[1] * scale, foot[2] * scale] },
       seed + ":" + area.id, { count: 4 + Math.floor(rng() * 4) });
-    bodies.push({ area, variant, scale, places: built.places, lift: fp.lo[1] });
-    total += variant.count * built.places.length;
+    if (!isPlaza) {
+      bodies.push({ area, variant, scale, places: built.places, lift: fp.lo[1] });
+      total += variant.count * built.places.length;
+    }
 
     // Предметы: одиночные вещи СЛУЧАЙНОЙ формы, стоящие по участку. Постройка задаёт
     // строй, предметы его разбивают — без них участок читается образцом застройки,
@@ -116,9 +123,11 @@ export function buildCityField(city, language, atlas, opts = {}) {
       const ts = tw / tfp.size[0];
       // Ставим ближе к краю участка, чтобы проход посередине оставался свободным.
       const a = rng() * Math.PI * 2;
-      const r = area.size[0] * (0.2 + rng() * 0.22);
+      // Вещи стоят НА УЛИЦЕ, вокруг квартала, а не внутри массива: внутрь здания их
+      // всё равно не видно, а на улице они и разбивают строй.
+      const r = area.size[0] * (0.36 + rng() * 0.12);
       bodies.push({
-        area, variant: tv, scale: ts, lift: tfp.lo[1],
+        area, variant: tv, scale: ts, lift: tfp.lo[1], isThing: true,
         places: [{ at: [Math.cos(a) * r, 0, Math.sin(a) * r], scale: 1, turn: rng() * Math.PI * 2, stretch: [1, 1, 1] }],
       });
       total += tv.count;
@@ -157,64 +166,81 @@ export function buildCityField(city, language, atlas, opts = {}) {
     mk(geo, "bodies");
   }
 
-  // ── стены и полы ────────────────────────────────────────────────────────────
+  // ── кварталы: здание посреди клетки, улица вокруг ───────────────────────────
+  // Модель перевёрнута по второму листу референса. Раньше участок был КОМНАТОЙ со
+  // стенами по краям: с непрозрачными телами игрок оказывался внутри коробки. На кадрах
+  // же улица идёт МЕЖДУ массивами — здание стоит посреди квартала, а дорога обходит его.
+  // Ширина улицы к высоте здания примерно один к трём: это и есть каньон.
   const surfaces = [];
+  const BLOCK = 0.62;          // какую долю клетки занимает здание
   for (const area of city.areas) {
-    const half = area.size[0] / 2, halfD = area.size[2] / 2;
+    if (area.kind === "hall") continue;   // зал — не глухой массив, в него входят
+    // Участок входа остаётся ПЛОЩАДЬЮ: игрок появляется на открытом месте, а не
+    // упирается носом в стену. На кадрах референса человек тоже стоит на площади.
+    if (area.id === city.spawn) continue;
+    const bw = area.size[0] * BLOCK, bd = area.size[2] * BLOCK;
     const h = area.size[1];
-    const x0 = area.center[0] - half, z0 = area.center[2] - halfD;
+    const x0 = area.center[0] - bw / 2, z0 = area.center[2] - bd / 2;
+    // Сторона сдвига задана ЯВНО. Нормаль плоскости — это векторное произведение её
+    // осей, и наружу оно смотрит не всегда: на двух гранях из четырёх знаки уезжали
+    // ВНУТРЬ здания и пропадали за его же телом. Грань выходила чёрной.
+    const faces = [
+      [[x0, area.floorY, z0], [1, 0, 0], bw, -1],
+      [[x0, area.floorY, z0 + bd], [1, 0, 0], bw, 1],
+      [[x0, area.floorY, z0], [0, 0, 1], bd, 1],
+      [[x0 + bw, area.floorY, z0], [0, 0, 1], bd, -1],
+    ];
+    for (let k = 0; k < faces.length; k++) {
+      const [origin, u, len, side] = faces[k];
+      surfaces.push({
+        role: "face:" + area.id + ":" + k,
+        spec: { type: "plane", origin, u, v: [0, 1, 0], w: len, h },
+        marks: CITY_WALL_MARKS,
+        side,
+      });
+    }
+    // Тело чуть МЕНЬШЕ граней: знаки на гранях остаются снаружи и не тонут в нём.
+    area.block = { min: [x0 + 1, area.floorY, z0 + 1], max: [x0 + bw - 1, area.floorY + h, z0 + bd - 1] };
+  }
 
+  // Пол — общий на весь город, одним полотном: у каждого участка свой давал швы
+  // и лишние тысячи точек на стыках.
+  {
+    const b = city.bounds;
     surfaces.push({
-      role: "floor:" + area.id,
-      spec: { type: "plane", origin: [x0, area.floorY, z0], u: [1, 0, 0], v: [0, 0, 1], w: half * 2, h: halfD * 2 },
+      role: "ground",
+      spec: { type: "plane", origin: [b.min[0], city.floorY, b.min[2]], u: [1, 0, 0], v: [0, 0, 1],
+        w: b.max[0] - b.min[0], h: b.max[2] - b.min[2] },
       marks: CITY_FLOOR_MARKS,
     });
-
-    const open = openSides.get(area.id);
-    const sides = [
-      ["north", [x0, area.floorY, z0], [1, 0, 0], half * 2],
-      ["south", [x0, area.floorY, area.center[2] + halfD], [1, 0, 0], half * 2],
-      ["west", [area.center[0] - half, area.floorY, z0], [0, 0, 1], halfD * 2],
-      ["east", [area.center[0] + half, area.floorY, z0], [0, 0, 1], halfD * 2],
-    ];
-    for (const [name, origin, u, len] of sides) {
-      if (open.has(name)) {
-        // Проём: два простенка по краям, между ними вход к соседу.
-        const gap = len * 0.3;
-        const jamb = (len - gap) / 2;
-        if (jamb < 8) continue;
-        surfaces.push({ role: "wall:" + area.id + ":" + name + ":a",
-          spec: { type: "plane", origin, u, v: [0, 1, 0], w: jamb, h }, marks: CITY_WALL_MARKS });
-        const o2 = [origin[0] + u[0] * (jamb + gap), origin[1], origin[2] + u[2] * (jamb + gap)];
-        surfaces.push({ role: "wall:" + area.id + ":" + name + ":b",
-          spec: { type: "plane", origin: o2, u, v: [0, 1, 0], w: jamb, h }, marks: CITY_WALL_MARKS });
-      } else {
-        surfaces.push({ role: "wall:" + area.id + ":" + name,
-          spec: { type: "plane", origin, u, v: [0, 1, 0], w: len, h }, marks: CITY_WALL_MARKS });
-      }
-    }
   }
 
   // ── тела для столкновений ───────────────────────────────────────────────────
   // Стена — тонкая коробка по своей длине, постройка — коробка по своему габариту.
   // Их и получит collide.js: сквозь них пройти нельзя.
   const solids = [];
-  const WALL_T = 10;
-  for (const item of surfaces) {
-    if (!item.role.startsWith("wall:")) continue;
-    const sp = item.spec;
-    const ex = sp.origin[0] + sp.u[0] * sp.w, ez = sp.origin[2] + sp.u[2] * sp.w;
-    solids.push({
-      min: [Math.min(sp.origin[0], ex) - WALL_T, sp.origin[1], Math.min(sp.origin[2], ez) - WALL_T],
-      max: [Math.max(sp.origin[0], ex) + WALL_T, sp.origin[1] + sp.h, Math.max(sp.origin[2], ez) + WALL_T],
-    });
+  for (const area of city.areas) {
+    if (area.block) solids.push(area.block);
   }
+  // Тела предметов и построек — с ОГРАНИЧИТЕЛЕМ. Без него одна вещь с вытянутой формой
+  // раздувалась до размеров квартала и накрывала камеру целиком: экран становился
+  // сплошной заливкой, и понять это по кадру было нельзя — пришлось красить тела в
+  // яркий цвет, чтобы увидеть, где они на самом деле.
+  // Вещь не бывает размером с квартал. Без раздельных пределов одна вытянутая форма
+  // раздувалась до трёхсот единиц в поперечнике и накрывала камеру целиком: экран
+  // становился сплошной заливкой, и понять это по кадру было нельзя — пришлось красить
+  // тела в яркий цвет, чтобы увидеть, где они на самом деле.
+  const BODY_LIMIT = city.cell * 0.5;
+  const THING_LIMIT = 34;
   for (const b of bodies) {
+    const cap = b.isThing ? THING_LIMIT : BODY_LIMIT;
     for (const place of b.places) {
       const sc = place.scale * b.scale;
-      const hw = b.variant ? 0 : 0;
       const fw = footprintOf(b.variant).size;
-      const hx = fw[0] * sc * 0.5, hz = fw[2] * sc * 0.5, hy = fw[1] * sc;
+      const hx = Math.min(cap, fw[0] * sc * 0.5);
+      const hz = Math.min(cap, fw[2] * sc * 0.5);
+      const hy = Math.min(cap * (b.isThing ? 3 : 6), fw[1] * sc);
+      if (hx < 2 || hz < 2 || hy < 2) continue;
       solids.push({
         min: [b.area.center[0] + place.at[0] - hx, b.area.floorY, b.area.center[2] + place.at[2] - hz],
         max: [b.area.center[0] + place.at[0] + hx, b.area.floorY + hy, b.area.center[2] + place.at[2] + hz],
@@ -227,7 +253,9 @@ export function buildCityField(city, language, atlas, opts = {}) {
     const built = buildSurfaceField(seed + ":" + item.role, item.spec, atlas, {
       marks: item.marks, language, fogDensity: opts.fogDensity, spectrum: opts.spectrum,
       salt: item.role,
-      tile: item.role.startsWith("wall:") ? CITY_WALL_TILE : undefined,
+      tile: item.role.startsWith("face:") ? CITY_WALL_TILE : undefined,
+      // Знаки лежат чуть снаружи тела: иначе их съедает буфер глубины.
+      lift: item.role.startsWith("face:") ? 9 * (item.side || 1) : 0,
     });
     if (opts.uPulse) built.uniforms.uPulse = opts.uPulse;
     if (opts.uTime) built.uniforms.uTime = opts.uTime;
@@ -235,6 +263,14 @@ export function buildCityField(city, language, atlas, opts = {}) {
     group.add(built.points);
     parts.push(built);
   }
+
+  // ── непрозрачные тела ───────────────────────────────────────────────────────
+  // Те же коробки, что ушли в столкновения, ставятся и в кадр — тёмными массивами.
+  // Без них светящиеся точки только складывают свет и не заслоняют ничего: сквозь любую
+  // стену виден весь город разом, и он читается макетом.
+  const bodyMesh = buildSolids(opts.noSolids ? [] : solids, {});
+  group.add(bodyMesh.group);
+  parts.push({ dispose: () => bodyMesh.dispose() });
 
   // ── зал ─────────────────────────────────────────────────────────────────────
   let hall = null, hallField = null;
@@ -268,6 +304,7 @@ export function buildCityField(city, language, atlas, opts = {}) {
     group, parts, hall,
     dispose() {
       for (const p of parts) {
+        if (typeof p.dispose === "function") { p.dispose(); continue; }
         if (p.geometry) p.geometry.dispose();
         if (p.material) p.material.dispose();
       }

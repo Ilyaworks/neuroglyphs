@@ -299,6 +299,7 @@ export function createWorld(seedCode) {
     cityBuilt = buildCityField(city, language, atlas, {
       seed: code, spectrum: palette.glyph, fogDensity,
       uPulse: uniforms.uPulse, uTime: uniforms.uTime,
+      noSolids: params && params.get("solids") === "0",
     });
     group.add(cityBuilt.group);
     field.visible = false;

@@ -181,6 +181,7 @@ export function buildSurface(seedCode, spec, opts = {}) {
   if (!allow.length) throw new Error("на поверхность нечего класть: пустой список родов");
 
   const extent = surfaceExtent(spec);
+  const lift = opts.lift !== undefined ? opts.lift : 0;
   // Язык мира: его алфавитом пишутся все знаки, его веса решают, каких знаков на
   // поверхности больше. Без этого каждая стена тянет случайную смесь из девяти родов,
   // и мир читается кучей малой, а не постройкой в одной манере.
@@ -234,9 +235,12 @@ export function buildSurface(seedCode, spec, opts = {}) {
       s = slot.wrapU || spec.type !== "plane" ? wrap01(s) : Math.min(1, Math.max(0, s));
       t = Math.min(0.999, Math.max(0.001, t));
       pointOn(spec, s, t, hit);
-      positions[w * 3] = hit.p[0];
-      positions[w * 3 + 1] = hit.p[1];
-      positions[w * 3 + 2] = hit.p[2];
+      // Сдвиг ВДОЛЬ НОРМАЛИ. Когда за поверхностью стоит непрозрачное тело, знаки,
+      // лежащие точно в её плоскости, отсекаются буфером глубины — грань выходит
+      // чёрной. Знак обязан лежать чуть СНАРУЖИ тела, а не в его шкуре.
+      positions[w * 3] = hit.p[0] + hit.n[0] * lift;
+      positions[w * 3 + 1] = hit.p[1] + hit.n[1] * lift;
+      positions[w * 3 + 2] = hit.p[2] + hit.n[2] * lift;
       normals[w * 3] = hit.n[0];
       normals[w * 3 + 1] = hit.n[1];
       normals[w * 3 + 2] = hit.n[2];
