@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "dev": "node server.mjs",
-    "test": "node test/rng.test.mjs && node test/seed.test.mjs && node test/layouts.test.mjs && node tools/surface-check.mjs --self --quiet && node tools/zones-check.mjs --self --quiet && node tools/collide-check.mjs --self --quiet && node tools/location-check.mjs --self --quiet"
+    "test": "node test/rng.test.mjs && node test/seed.test.mjs && node test/layouts.test.mjs && node tools/surface-check.mjs --self --quiet && node tools/zones-check.mjs --self --quiet && node tools/collide-check.mjs --self --quiet && node tools/location-check.mjs --self --quiet && node tools/strange-check.mjs --self --quiet"
   }
 }
