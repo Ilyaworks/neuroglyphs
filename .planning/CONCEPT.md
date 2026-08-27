@@ -117,7 +117,10 @@ the next world. You can return to old worlds — but they've changed.
 - Fly-cam (WASD + mouse look, pointer lock)
 - Shift: boost / Ctrl: slow
 - Freeze mode (Tab): third-person, orbit around self, inspect world
-- No collision, no gravity
+- Gravity: none. Collision: YES — surfaces, buildings and objects are solid
+  and cannot be flown through. Changed 26.08.2026 by the customer: "predmety,
+  goroda, poverhnosti dolzhny byt osyazaemy". Was "no collision"; the world
+  read as a picture to fly through rather than a place. Work: task N80.
 - Smooth acceleration/deceleration (not instant)
 
 ### World Transition
