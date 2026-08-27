@@ -9,6 +9,8 @@ import { buildSurfaceField } from "./surfaceField.js";
 import { LAYOUTS } from "./layouts/index.js";
 import { layoutSurfaces, layoutForms } from "./surfacePlan.js";
 import { buildLanguage } from "./language.js";
+import { buildHall } from "./halls.js";
+import { buildHallField } from "./hallField.js";
 import { buildExitPortal } from "./portal.js";
 import { buildImpossible, IMPOSSIBLE_KINDS } from "../atmosphere/impossible.js";
 import { resolvePalette } from "../art/palettes.js";
@@ -32,6 +34,13 @@ export function createWorld(seedCode) {
   const fields = decodeSeed(code);
   const rng = fields.rng;
   const group = new THREE.Group();
+
+  // Срез по кадру референса: ?hall=1 строит ТОЛЬКО зал со сферой — без облака-раскладки,
+  // без формы из каталога, без невозможной фигуры. Отдельным входом, а не заменой мира:
+  // так на срез можно смотреть уже сейчас, а гейты продолжают мерить прежний мир. Когда
+  // город вокруг зала будет готов (N88), этот вход станет обычной дорогой.
+  const hallOnly = typeof location !== "undefined"
+    && new URLSearchParams(location.search).get("hall") === "1";
 
   const budget = 1500 + fields.density * 2000;
   const density = Math.floor(budget * 0.6);
@@ -268,8 +277,34 @@ export function createWorld(seedCode) {
     }
   }
 
+  // Зал со сферой — срез по кадру референса. Старые слои не удаляются, а ГАСЯТСЯ:
+  // так вход ?hall=1 показывает чистый кадр, а прежний мир остаётся на месте и его
+  // продолжают мерить прежние гейты. Удалять их можно будет, когда город вокруг зала
+  // встанет на их место (N88).
+  let hallBuilt = null;
+  if (hallOnly) {
+    const hall = buildHall(code, language, { floorY: 0 });
+    hallBuilt = buildHallField(hall, language, atlas, {
+      seed: code, spectrum: palette.glyph, fogDensity,
+      uPulse: uniforms.uPulse, uTime: uniforms.uTime,
+    });
+    group.add(hallBuilt.group);
+    field.visible = false;
+    shapeField.visible = false;
+    impField.visible = false;
+    for (const s of surfaces) s.points.visible = false;
+    // Звёзд в закрытом зале не бывает: свод их и так закрывает, но гасим явно —
+    // иначе они просвечивают в проёмах и выдают, что зал стоит в пустоте.
+    stars.visible = false;
+    // Портал — за сферой, в глубине зала: по кадру референса выход читается в дальнем конце.
+    portal.group.position.set(0, hall.floorY + hall.sphere.radius, hall.bounds.min[2] + 40);
+  }
+
   group.userData = { seed: code, structure, bounds, exitPosition: portal.group.position, palette, fogDensity };
   group.userData.language = { manner: language.manner, alphabet: language.alphabet, forms: language.forms };
+  // ПОСЛЕ общего присваивания userData: строка выше заменяет объект целиком, и ссылка
+  // на зал, поставленная раньше, просто пропадала. Камера всё это время стояла по-старому.
+  if (hallBuilt) group.userData.hall = hallBuilt.group.userData.hall;
   group.userData.surfaces = surfaces.map((s) => s.points.userData.surface);
   group.userData.impossible = {
     kind: imp.kind,
@@ -311,6 +346,7 @@ export function createWorld(seedCode) {
         }
       });
       for (const s of surfaces) { s.geometry.dispose(); s.material.dispose(); }
+      if (hallBuilt) hallBuilt.dispose();
     },
   };
 }

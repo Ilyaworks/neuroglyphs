@@ -71,11 +71,20 @@ world.ready.then(() => {
 
   // Игрок стоит НА полу, а не висит посреди мира. Пол лежит под всеми отражаемыми
   // объектами, значит весь мир оказывается НАД игроком — и отражается.
-  camera.position.set(
-    (worldBounds.min[0] + worldBounds.max[0]) / 2,
-    floorLine + FLOOR_EYE,
-    (worldBounds.min[2] + worldBounds.max[2]) / 2 + worldBounds.size[2] * 0.30,
-  );
+  const hall = world.group.userData.hall;
+  if (hall) {
+    // Срез по кадру референса: игрок стоит В ПРОЁМЕ зала, на оси, и смотрит вглубь —
+    // за сферу. Именно с этой точки кадр и складывается тем, что на референсе.
+    camera.position.set(hall.eye[0], Math.max(hall.eye[1], floorLine + FLOOR_EYE), hall.eye[2]);
+    camera.lookAt(hall.axis.to[0], hall.eye[1] + hall.bounds.max[1] * 0.12, hall.axis.to[2]);
+    textMesh.visible = false;
+  } else {
+    camera.position.set(
+      (worldBounds.min[0] + worldBounds.max[0]) / 2,
+      floorLine + FLOOR_EYE,
+      (worldBounds.min[2] + worldBounds.max[2]) / 2 + worldBounds.size[2] * 0.30,
+    );
+  }
 });
 
 // Надписи из глифов: строка по настроению сида, плоскость смотрит на камеру.

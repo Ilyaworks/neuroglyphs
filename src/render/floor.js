@@ -104,7 +104,11 @@ export function buildFloor(seedCode, world, opts = {}) {
 
   const sources = [];
   world.group.traverse((o) => {
-    if (o.isPoints && o.userData.noReflect !== true && o.geometry.attributes.position) sources.push(o);
+    // Погашенное облако не отражается и не тянет вниз линию пола: отражать то, чего
+    // не рисуют, незачем. Без этого срез по залу считал пол по спрятанному старому
+    // миру, и камера оказывалась на три сотни единиц выше зала.
+    if (o.isPoints && o.visible !== false && o.userData.noReflect !== true
+      && o.geometry.attributes.position) sources.push(o);
   });
 
   // Линия пола. Раньше бралась как bounds.min[1] — низ габаритной коробки мира.
