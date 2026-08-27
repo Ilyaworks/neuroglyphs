@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>neuroglyphs — светлое пространство</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #f2efe9; }
+  /* Светлый вариант показан обращением готового кадра, а не переделкой рендера.
+     Так и должно быть на пробе: сначала человек решает, нравится ли ему такой мир,
+     и только потом это делается по-настоящему — сменой смешивания в материале
+     глифов с аддитивного на обычное и тёмной палитрой. Аддитивное смешивание на
+     светлом фоне не работает вовсе: прибавить свет к белому нечего.
+     invert обращает яркость, hue-rotate возвращает краскам их тон, иначе золото
+     мира стало бы синим. */
+  #scene {
+    display: block; width: 100vw; height: 100vh;
+    filter: invert(1) hue-rotate(180deg) saturate(1.25) contrast(0.92);
+  }
+  #hint {
+    position: fixed; left: 12px; top: 12px; z-index: 2;
+    font: 12px/1.6 ui-monospace, Consolas, monospace; color: #4a4034;
+    background: rgba(255,255,255,.72); padding: 9px 11px; border: 1px solid #cfc4b4;
+    white-space: pre; pointer-events: none;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="hint">СВЕТЛОЕ ПРОСТРАНСТВО — проба вида
+кликните по картинке — мышь вращает взгляд
+W A S D — идти, пробел / C — выше и ниже, Shift — быстрее
+Tab — осмотр со стороны, Esc — отпустить курсор
+
+это обращение готового кадра, а не настоящий светлый рендер:
+проба нужна, чтобы решить, стоит ли делать по-настоящему</div>
+<script type="module" src="/src/boot.js"></script>
+</body>
+</html>

@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { createWorld } from "./world/world.js";
+import { buildGlyphAtlas } from "./core/atlas.js";
 import { buildComposer } from "./render/post.js";
+import { buildFloor } from "./render/floor.js";
+import { buildFieldGeometry } from "./world/fieldGeometry.js";
+import { buildFieldMaterial } from "./world/fieldMaterial.js";
+import { buildFormulaPlane, FORMULAS } from "./world/textField.js";
 import { createFlyCam } from "./player/flycam.js";
 import { createFreeze } from "./player/freeze.js";
 
@@ -35,12 +40,61 @@ onFrame((dt) => {
   world.uniforms.uPulse.value = 0.5 + 0.5 * Math.sin(world.uniforms.uTime.value * 2.0);
 });
 
+const seedCode = world.group.userData.seed;
+
 export const camera = new THREE.PerspectiveCamera(
   70,
   window.innerWidth / window.innerHeight,
   0.1,
   5000,
 );
+
+// Пол строится ТОЛЬКО после того, как геометрия мира наполнилась.
+// buildFieldGeometry заполняет атрибуты порциями по кадрам и разрешает world.ready
+// в конце. Пол, построенный раньше, снимает зеркальные копии с НЕДОСТРОЕННОГО мира:
+// почти все точки ещё сидят в начале координат, копии оказываются комком у камеры,
+// а линия пола считается по этому комку. Замером: на момент ранней постройки облака
+// занимали по высоте всего от -18 до 18 при настоящем размахе -321..306, и пол
+// садился на -19, то есть в середину мира. Именно так получались «дубли глифов
+// вокруг» вместо отражения под ногами.
+const FLOOR_EYE = 8;
+const worldBounds = world.group.userData.bounds;
+let floorLine = -Infinity;
+
+world.ready.then(() => {
+  const floor = buildFloor(seedCode, world);
+  // Пол — не мир: метку userData.seed с его группы снимаем, иначе гейты
+  // (mood-check, figure-check), ищущие группу мира по этой метке, найдут пол.
+  delete floor.group.userData.seed;
+  scene.add(floor.group);
+  floorLine = floor.group.userData.floorY;
+
+  // Игрок стоит НА полу, а не висит посреди мира. Пол лежит под всеми отражаемыми
+  // объектами, значит весь мир оказывается НАД игроком — и отражается.
+  camera.position.set(
+    (worldBounds.min[0] + worldBounds.max[0]) / 2,
+    floorLine + FLOOR_EYE,
+    (worldBounds.min[2] + worldBounds.max[2]) / 2 + worldBounds.size[2] * 0.30,
+  );
+});
+
+// Надписи из глифов: строка по настроению сида, плоскость смотрит на камеру.
+const atlas = buildGlyphAtlas();
+const mood = palette.mood || "serene";
+const formula = (FORMULAS.find((f) => f.mood === mood) || FORMULAS[0]).text;
+const plane = buildFormulaPlane(formula, { count: 1500, extent: 80 });
+const { geometry: textGeo, ready: textReady } = buildFieldGeometry(plane.count, (i, out) => plane.fill(i, out));
+const { material: textMat, uniforms: textUniforms } = buildFieldMaterial(atlas, { fogDensity: world.group.userData.fogDensity });
+textMat.uniforms.uSpectrum.value = palette.glyph.map((c) => new THREE.Color(c));
+textUniforms.uPulse = world.uniforms.uPulse;
+textUniforms.uTime = world.uniforms.uTime;
+const textMesh = new THREE.Points(textGeo, textMat);
+textMesh.position.set(0, 40, -200);
+textMesh.frustumCulled = false;
+scene.add(textMesh);
+textReady.then(() => {
+  textMesh.lookAt(camera.position);
+});
 
 function resize() {
   const width = window.innerWidth;
@@ -53,7 +107,7 @@ function resize() {
 
 window.addEventListener("resize", resize);
 
-const post = buildComposer(renderer, scene, camera);
+export const post = buildComposer(renderer, scene, camera);
 
 export const flyCam = createFlyCam(camera, canvas);
 export const freeze = createFreeze(camera, canvas, flyCam);
@@ -75,6 +129,15 @@ function tick(now) {
     flyCam.update(dt);
   }
   wasFrozen = frozen;
+  // Сквозь пол не проваливаемся. Ограничитель стоит ПОСЛЕ движения и перед
+  // отрисовкой, а не до него: пока он стоял раньше flycam.update, камера успевала
+  // уехать под пол в этом же кадре и кадр рисовался снизу. На Shift скорость
+  // удваивается, за кадр это до 12 единиц — человек видел пространство под полом
+  // именно так. Ограничитель после движения не даёт нарисовать ни одного такого
+  // кадра, и заодно ловит осмотр со стороны (Tab), который тоже двигает камеру.
+  if (camera.position.y < floorLine + 2) {
+    camera.position.y = floorLine + 2;
+  }
   post.composer.render();
   requestAnimationFrame(tick);
 }

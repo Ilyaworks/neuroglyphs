@@ -80,6 +80,7 @@ const STUB = [
   '  getAttribute(n) { return this.attributes[n]; }',
   '  computeBoundingSphere() { this.boundingSphere = { radius: 1 }; }',
   '  setDrawRange() {}',
+  '  setIndex(i) { this.index = i; return this; }',
   '  dispose() { this.disposed = true; disposals.geometry++; }',
   '}',
   'class Object3D {',
@@ -91,6 +92,21 @@ const STUB = [
   '  traverse(fn) { fn(this); for (const c of this.children) { if (c.traverse) c.traverse(fn); else fn(c); } }',
   '}',
   'class Group extends Object3D { constructor() { super(); this.isGroup = true; } }',
+  // Mesh и MeshBasicMaterial в заглушке отсутствовали, и это не мелочь: сплошную
+  // поверхность пола — то единственное, что закрывает пространство ПОД полом, —
+  // из точек не построить. Пока классов не было, любая честная версия падала на
+  // «Mesh is not a constructor», и гейт запрещал единственную правильную
+  // конструкцию. Ниже добавлена и проверка, что поверхность у пола есть.
+  'class Vector2 { constructor(x = 0, y = 0) { this.x = x; this.y = y; }',
+  '  set(x, y) { this.x = x; this.y = y; return this; } }',
+  'class Mesh extends Object3D {',
+  '  constructor(geometry, material) { super(); this.geometry = geometry;',
+  '    this.material = material; this.isMesh = true; }',
+  '}',
+  'class MeshBasicMaterial {',
+  '  constructor(p = {}) { Object.assign(this, p); this.disposed = false; }',
+  '  dispose() { this.disposed = true; disposals.material++; }',
+  '}',
   'class Points extends Object3D {',
   '  constructor(geometry, material) { super(); this.geometry = geometry;',
   '    this.material = material; this.isPoints = true; }',
@@ -103,7 +119,7 @@ const STUB = [
   'class Texture { constructor() { this.needsUpdate = false; } dispose() {} }',
   'class Matrix4 { constructor() { this.elements = new Array(16).fill(0); }',
   '  makeScale() { return this; } identity() { return this; } }',
-  'export { Vector3, Color, BufferAttribute, BufferGeometry, Object3D, Group, Points, ShaderMaterial, Texture, Matrix4 };',
+  'export { Vector3, Color, BufferAttribute, BufferGeometry, Object3D, Group, Points, Mesh, MeshBasicMaterial, ShaderMaterial, Texture, Matrix4, Vector2 };',
   'export const AdditiveBlending = 2;',
   'export const NormalBlending = 1;',
   'export const DoubleSide = 2;',
@@ -223,10 +239,41 @@ if (!floor || !floor.group || typeof floor.dispose !== 'function') {
   report();
 }
 
-const floorY = world.group.userData.bounds.min[1];
+// Линию пола берём у САМОГО пола, а не из габаритов мира. Гейт считал её равной
+// bounds.min[1] и этим диктовал полу высоту. Коробку мира растягивают одиночные
+// далёкие объекты: у сида 0000-5hgu-kr7u bounds.min[1] = -321, а светящиеся глифы
+// лежат в полосе от -19 до +17. Пол по такому «низу» оказывается на дне ямы, и
+// отражать ему нечего. Гейт обязан проверять согласованность отражения с настоящей
+// линией пола, а не назначать её.
+const floorY = floor.group.userData.floorY !== undefined
+  ? floor.group.userData.floorY
+  : world.group.userData.bounds.min[1];
 const height = world.group.userData.bounds.size[1];
 console.log('мир: линия пола y=' + floorY.toFixed(1) + ', высота ' + height.toFixed(1)
   + ', исходных облаков ' + world.clouds.length);
+
+// Сплошная поверхность пола. Без неё пол ничего не загораживает: зеркальные копии
+// висят в открытом пространстве и читаются вторым миром снизу, а не отражением, и
+// сквозь «пол» светят звёзды. Человек на приёмке сказал об этом дословно: «выглядит
+// не как отражение, а будто там внизу копия», «под полом ничего не должно быть видно».
+{
+  const solids = [];
+  floor.group.traverse((o) => { if (o.userData && o.userData.floorPart === 'solid') solids.push(o); });
+  if (solids.length !== 1) {
+    bad('у пола нет сплошной поверхности (floorPart === "solid"): найдено ' + solids.length
+      + '. Без неё пространство ПОД полом остаётся видимым, и отражение читается копией мира.');
+  } else {
+    const sol = solids[0];
+    if (!sol.isMesh) {
+      bad('сплошная поверхность пола не меш. Из точек поверхности не выходит: Points рисует '
+        + 'по одной точке на вершину, у четырёхугольника их четыре.');
+    }
+    if (sol.material && sol.material.transparent === true) {
+      bad('сплошная поверхность пола прозрачна — сквозь неё будет видно то, что под полом');
+    }
+    console.log('сплошная поверхность пола на месте: меш, непрозрачная');
+  }
+}
 
 const parts = { mirror: [], plane: [], other: [] };
 floor.group.traverse((o) => {
